@@ -1,0 +1,37 @@
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* La barre du haut sert aussi à déplacer la fenêtre ; les boutons de fenêtre de macOS sont à gauche. */
+.topBar {
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 0 92px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  -webkit-app-region: drag;
+}
+
+.appName {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.separator {
+  color: #4a4f5a;
+}
+
+.projectName {
+  color: var(--text-2);
+}
+
+.workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}

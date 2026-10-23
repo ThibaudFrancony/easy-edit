@@ -1,0 +1,96 @@
+/* Direction « Studio » : les valeurs viennent d'AGENTS.md (section Design). */
+:root {
+  --bg: #0b0c0f;
+  --panel: #0f1014;
+  --lane: #101216;
+  --hover: #1a1d23;
+  --selected: #1c2027;
+  --line: #1f2229;
+  --control: #23262e;
+  --control-strong: #2a2e36;
+  --text: #e8eaee;
+  --text-2: #9aa0ab;
+  --text-3: #6b717c;
+  --accent: #ff6b2c;
+  --on-accent: #140904;
+  --video: #24324d;
+  --video-ink: #dce4f5;
+  --audio: #163129;
+  --audio-wave: #5fd8ae;
+  --music: #2a2342;
+  --music-wave: #b9a2ff;
+
+  --font: 'Inter', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --radius: 7px;
+
+  --lane-head: 128px;
+  --lane-gap: 8px;
+  --lane-video: 66px;
+  --lane-audio: 40px;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 400 13px/1.4 var(--font);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mono {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.icon-button {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  transition: background 0.2s, color 0.2s;
+}
+
+.icon-button:hover {
+  background: #1e2128;
+  color: var(--text);
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
