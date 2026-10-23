@@ -7,6 +7,7 @@ import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { fileName } from '@/lib/format'
+import { Inspector } from './components/Inspector'
 import { Library } from './components/Library'
 import { Preview } from './components/Preview'
 import { Timeline } from './components/timeline/Timeline'
@@ -32,6 +33,7 @@ export function App(): React.JSX.Element {
       <div className={styles.workspace}>
         <Library />
         <Preview />
+        <Inspector />
       </div>
       <Timeline />
     </div>

@@ -12,8 +12,11 @@ interface ProjectState {
   past: Project[]
   future: Project[]
   load(opened: OpenedProject): void
-  /** Seule façon de modifier le montage : la modification est annulable et enregistrée automatiquement. */
-  update(recipe: (draft: Project) => void): void
+  /**
+   * Seule façon de modifier le montage : la modification est annulable et enregistrée automatiquement.
+   * Les modifications successives qui partagent un `mergeKey` (un curseur qu'on fait glisser) ne font qu'une étape d'annulation.
+   */
+  update(recipe: (draft: Project) => void, mergeKey?: string): void
   undo(): void
   redo(): void
 }
@@ -27,11 +30,13 @@ export const useProject = create<ProjectState>()((set, get) => ({
     flushSave()
     set({ path: opened.path, project: opened.project, past: [], future: [] })
   },
-  update: (recipe) => {
+  update: (recipe, mergeKey) => {
     const { project, past } = get()
     const next = produce(project, recipe)
     if (next === project) return
-    set({ project: next, past: [...past, project].slice(-HISTORY_LIMIT), future: [] })
+    const merge = mergeKey !== undefined && mergeKey === lastMerge.key && performance.now() - lastMerge.at < 1500
+    lastMerge = { key: mergeKey, at: performance.now() }
+    set({ project: next, past: merge ? past : [...past, project].slice(-HISTORY_LIMIT), future: [] })
     scheduleSave()
   },
   undo: () => {
@@ -50,6 +55,7 @@ export const useProject = create<ProjectState>()((set, get) => ({
   }
 }))
 
+let lastMerge: { key: string | undefined; at: number } = { key: undefined, at: 0 }
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 function scheduleSave(): void {

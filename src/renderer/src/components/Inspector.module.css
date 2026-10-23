@@ -1,0 +1,209 @@
+.inspector {
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+}
+
+/* Largeur fixe : pendant l'ouverture, le panneau dévoile son contenu au lieu de le comprimer. */
+.content {
+  width: 300px;
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: -10px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: var(--audio-wave);
+}
+
+.dot[data-music='true'] {
+  background: var(--music-wave);
+}
+
+.name,
+.nameInput {
+  flex: 1;
+  min-width: 0;
+  font: 600 16px var(--font);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nameInput {
+  height: 30px;
+  margin-left: -6px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.nameInput:hover {
+  border-color: var(--control);
+}
+
+.nameInput:focus {
+  border-color: var(--accent);
+  background: var(--lane);
+}
+
+.volume {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.volumeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.value {
+  font-size: 28px;
+  letter-spacing: -0.02em;
+  transition: color 0.2s;
+}
+
+.value[data-muted='true'] {
+  color: var(--text-3);
+}
+
+.swap {
+  display: flex;
+}
+
+.swap[data-muted='true'] {
+  color: var(--accent);
+}
+
+.slider {
+  position: relative;
+  height: 24px;
+  transition: opacity 0.2s;
+}
+
+.slider[data-muted='true'] {
+  opacity: 0.45;
+}
+
+.track,
+.fill {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.track {
+  right: 0;
+  background: var(--control);
+}
+
+.fill {
+  background: var(--accent);
+}
+
+.unity {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 1px;
+  height: 16px;
+  background: #4a4f5a;
+}
+
+.thumb {
+  position: absolute;
+  top: 4px;
+  margin-left: -8px;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--text);
+  pointer-events: none;
+}
+
+.slider input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #5c616c;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--control-strong);
+  transition: background 0.25s;
+}
+
+.switch[data-on='true'] {
+  background: var(--accent);
+}
+
+.knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.delete {
+  align-self: flex-start;
+  height: 30px;
+  padding: 0 10px;
+  margin-left: -10px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  transition: background 0.2s, color 0.2s;
+}
+
+.delete:hover {
+  background: var(--hover);
+  color: var(--text);
+}

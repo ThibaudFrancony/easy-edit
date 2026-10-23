@@ -37,17 +37,19 @@ On code lot par lot. Un lot est fini quand il compile, que l'app se lance, que t
 - [x] Animations : les morceaux glissent en ressort vers leur nouvelle place (suppression, annulation), un morceau coupé apparaît en glissant légèrement, le déplacement à la souris suit sans retard.
 - [x] Formes d'onde dans les morceaux audio (calculées à partir du son déjà décodé pour la lecture, gardées en mémoire, sans recalcul au zoom).
 
-## Lot 3 : son
+## Lot 3 : son ✓
 
-- [ ] Clic sur le nom d'une piste : ses réglages dans l'inspecteur (volume de 0 à 200 %, coupure, interrupteur « Normaliser »).
-- [ ] Le même mixage à l'export qu'à l'aperçu (volumes jusqu'à 200 %, coupures), avec les filtres audio de FFmpeg.
-- [ ] Fond sonore : glisser un fichier audio depuis le Finder, et bouton + sous les pistes. Renommer et supprimer une piste ajoutée.
-- [ ] Bouton « Normaliser » : mesure du niveau sonore perçu de chaque piste incluse (en arrière-plan, en cache), puis réglage des volumes sur un niveau commun, plafonné à 200 %.
+- [x] Clic sur le nom d'une piste audio : ses réglages dans l'inspecteur, qui glisse depuis la droite (volume de 0 à 200 % avec repère à 100 % et double-clic pour y revenir, coupure du son, interrupteur « Normaliser »). Clic dans le vide, Échap ou × pour le refermer.
+- [x] Volume jusqu'à 200 % à l'écoute (un gain Web Audio par piste) ; la forme d'onde grandit ou rapetisse avec le volume ; une piste coupée est grisée et marquée dans son en-tête.
+- [x] Fond sonore : glisser un fichier audio (mp3, m4a, aac, wav, aiff, flac, ogg) depuis le Finder sur la timeline, ou bouton + sous les pistes. Une nouvelle piste au nom du fichier ; déposé sur une piste de fond sonore existante, il s'y ajoute. Plusieurs fichiers s'enchaînent.
+- [x] Renommer (dans l'inspecteur) et supprimer une piste de fond sonore.
+- [x] Bouton « Normaliser » : niveau sonore perçu de chaque piste incluse (blocs de 400 ms, portes à -70 dB et -10 dB, sur les parties utilisées), puis volumes réglés sur la médiane, plafonnés à 200 %. Les pistes silencieuses ne bougent pas. Une seule étape d'annulation.
+- [x] Les crans successifs d'un même réglage de volume ne font qu'une étape d'annulation.
 
 ## Lot 4 : export
 
 - [ ] Panneau d'export qui glisse depuis le haut : nom, dossier, qualité (taille d'origine ou 1080p, H.264).
-- [ ] Export en arrière-plan avec le son mixé comme dans l'aperçu (volumes, coupures, gain au-delà de 100 %). Barre de progression, annulation.
+- [ ] Export en arrière-plan avec le son mixé comme dans l'aperçu (volumes jusqu'à 200 %, coupures, fonds sonores), avec les filtres audio de FFmpeg. Barre de progression, annulation.
 - [ ] À la fin : afficher le fichier dans le Finder.
 
 ## Plus tard
@@ -56,3 +58,4 @@ On code lot par lot. Un lot est fini quand il compile, que l'app se lance, que t
 - Fondus audio et vidéo.
 - Clips de tailles différentes dans un même montage (pour l'instant, l'aperçu prend le format du premier clip).
 - Icône de l'app.
+- Normalisation plus fidèle (pondération K des LUFS) et calcul dans un worker si les projets deviennent longs.

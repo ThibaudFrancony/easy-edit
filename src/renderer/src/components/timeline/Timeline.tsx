@@ -6,7 +6,8 @@ import { player } from '@/engine/player'
 import { clipDetails, useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { LEADING_INSET, MAX_ZOOM, MIN_ZOOM, timeToX, useTimeline, xToTime } from '@/state/timeline'
-import { fade, standard } from '@/lib/motion'
+import { fade, quick, standard } from '@/lib/motion'
+import { addAudioFiles, normalizeLanes } from '@/state/editing'
 import { CLIP_DRAG_TYPE } from '../Library'
 import { Icon } from '../Icon'
 import { ContextMenu, type MenuPosition } from './ContextMenu'
@@ -30,6 +31,10 @@ export function Timeline(): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
   const [menu, setMenu] = useState<MenuPosition | null>(null)
+  /** Fichiers audio glissés depuis le Finder : l'instant où ils seront posés. */
+  const [fileDrop, setFileDrop] = useState<number | null>(null)
+  const inspected = useTimeline((s) => s.inspectedLane)
+  const hasAudio = project.lanes.some((l) => l.kind === 'audio')
   const dragSnap = useTimeline((s) => s.drag?.snapAt ?? null)
   const snapAt = ghost?.snapAt ?? dragSnap
 
@@ -50,9 +55,16 @@ export function Timeline(): React.JSX.Element {
     return snap(xToTime(x, pps), clipDuration, [...snapTimes(project), player.time()], SNAP_DISTANCE / pps)
   }
 
+  function fileDropTime(clientX: number): number {
+    const scroller = scrollRef.current!
+    const x = clientX - scroller.getBoundingClientRect().left + scroller.scrollLeft
+    return snap(xToTime(x, pps), 0, [...snapTimes(project), player.time()], SNAP_DISTANCE / pps).start
+  }
+
   return (
     <section className={styles.timeline}>
       <div className={styles.toolbar}>
+        <NormalizeButton disabled={!hasAudio} />
         <div className={styles.grow} />
         <ZoomControl />
       </div>
@@ -69,36 +81,76 @@ export function Timeline(): React.JSX.Element {
           <div className={styles.heads}>
             <AnimatePresence initial={false}>
               {lanes.map((lane) => (
-                <motion.div
+                <motion.button
                   key={lane.id}
                   layout
                   className={styles.head}
+                  data-kind={lane.kind}
+                  data-inspected={inspected === lane.id}
                   style={{ height: LANE_HEIGHT[lane.kind] }}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0 }}
                   transition={standard}
+                  onClick={() => {
+                    if (lane.kind === 'audio') useTimeline.getState().inspect(inspected === lane.id ? null : lane.id)
+                  }}
                 >
-                  {lane.name}
-                </motion.div>
+                  <span className={styles.headName}>{lane.name}</span>
+                  <AnimatePresence>
+                    {lane.muted && (
+                      <motion.span className={styles.headMuted} initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.6 }} transition={quick}>
+                        <Icon name="speaker-off" size={13} />
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </motion.button>
               ))}
             </AnimatePresence>
+            <motion.button
+              layout
+              className={styles.addLane}
+              aria-label="Ajouter un fond sonore"
+              title="Ajouter un fond sonore"
+              transition={standard}
+              onClick={async () => {
+                const paths = await window.api.pickAudioFiles()
+                if (paths.length > 0) await addAudioFiles(paths, player.time())
+              }}
+            >
+              <Icon name="plus" size={14} />
+            </motion.button>
           </div>
 
           <div
             ref={scrollRef}
             className={styles.scroller}
             onDragOver={(event) => {
-              if (!event.dataTransfer.types.includes(CLIP_DRAG_TYPE)) return
-              event.preventDefault()
-              event.dataTransfer.dropEffect = 'copy'
-              setGhost(dropPosition(event.clientX))
+              const types = event.dataTransfer.types
+              if (types.includes(CLIP_DRAG_TYPE)) {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'copy'
+                setGhost(dropPosition(event.clientX))
+              } else if (types.includes('Files')) {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'copy'
+                setFileDrop(fileDropTime(event.clientX))
+              }
             }}
             onDragLeave={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setGhost(null)
+              if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
+              setGhost(null)
+              setFileDrop(null)
             }}
             onDrop={async (event) => {
               event.preventDefault()
+              setFileDrop(null)
+              if (event.dataTransfer.files.length > 0 && !event.dataTransfer.types.includes(CLIP_DRAG_TYPE)) {
+                const paths = [...event.dataTransfer.files].map((file) => window.api.pathForFile(file)).filter(isAudioFile)
+                const laneId = (event.target as HTMLElement).closest<HTMLElement>('[data-lane-id]')?.dataset.laneId
+                if (paths.length > 0) await addAudioFiles(paths, fileDropTime(event.clientX), laneId)
+                return
+              }
               const path = event.dataTransfer.getData(CLIP_DRAG_TYPE)
               const position = dropPosition(event.clientX) ?? ghost
               setGhost(null)
@@ -112,7 +164,9 @@ export function Timeline(): React.JSX.Element {
               className={styles.content}
               style={{ width: contentWidth }}
               onPointerDown={(event) => {
-                if (event.button === 0) useTimeline.getState().setSelection(new Set())
+                if (event.button !== 0) return
+                useTimeline.getState().setSelection(new Set())
+                useTimeline.getState().inspect(null)
               }}
             >
               <AnimatePresence initial={false}>
@@ -121,6 +175,7 @@ export function Timeline(): React.JSX.Element {
                     key={lane.id}
                     layout
                     className={styles.lane}
+                    data-lane-id={lane.id}
                     style={{ height: LANE_HEIGHT[lane.kind] }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -145,6 +200,7 @@ export function Timeline(): React.JSX.Element {
                 )}
               </AnimatePresence>
               {snapAt !== null && <div className={styles.snapLine} style={{ left: timeToX(snapAt, pps) }} />}
+              {fileDrop !== null && <div className={styles.dropMarker} style={{ left: timeToX(fileDrop, pps) }} />}
             </div>
           </div>
         </div>
@@ -171,7 +227,7 @@ function LaneSegments({ project, lane, pps, onContextMenu }: { project: Project;
   return (
     <AnimatePresence initial={false}>
       {segmentsIn(project, lane.id).map((segment) => (
-        <SegmentView key={segment.id} segment={segment} kind={lane.kind} pps={pps} onContextMenu={onContextMenu} />
+        <SegmentView key={segment.id} segment={segment} lane={lane} pps={pps} onContextMenu={onContextMenu} />
       ))}
     </AnimatePresence>
   )
@@ -279,4 +335,34 @@ function useWheelZoom(scrollRef: React.RefObject<HTMLDivElement | null>): void {
     element.addEventListener('wheel', onWheel, { passive: false })
     return () => element.removeEventListener('wheel', onWheel)
   }, [scrollRef])
+}
+
+const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg)$/i
+
+function isAudioFile(path: string): boolean {
+  return AUDIO_EXTENSIONS.test(path)
+}
+
+/** Normalisation ponctuelle : un clic, les pistes incluses sont mises au même niveau (annulable avec ⌘Z). */
+function NormalizeButton({ disabled }: { disabled: boolean }): React.JSX.Element {
+  const [busy, setBusy] = useState(false)
+  return (
+    <button
+      className={styles.toolButton}
+      disabled={disabled || busy}
+      onClick={async () => {
+        setBusy(true)
+        try {
+          await normalizeLanes()
+        } finally {
+          setBusy(false)
+        }
+      }}
+    >
+      <motion.span style={{ display: 'flex' }} animate={busy ? { scaleY: [1, 0.6, 1] } : { scaleY: 1 }} transition={busy ? { duration: 0.6, repeat: Infinity } : quick}>
+        <Icon name="levels" size={14} />
+      </motion.span>
+      Normaliser
+    </button>
+  )
 }

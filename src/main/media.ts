@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdir, readdir, rename, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { extname, join } from 'node:path'
+import { basename, extname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { app } from 'electron'
 import ffmpegStatic from 'ffmpeg-static'
@@ -23,6 +23,8 @@ export const clipsFolder = join(homedir(), 'Movies', 'Clips')
 // Pas « Cache » : ce dossier appartient au cache HTTP de Chromium.
 const cacheFolder = join(app.getPath('userData'), 'Media')
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v'])
+/** Formats acceptés pour les fonds sonores. */
+export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'aac', 'wav', 'aif', 'aiff', 'flac', 'ogg']
 
 /** Ordre des pistes de ReplayClip, utilisé quand un fichier a perdu leurs noms (versions compressées). */
 const REPLAYCLIP_TRACK_NAMES = ['Mix', 'Micro', 'Minecraft', 'Discord', 'Autres sons']
@@ -53,9 +55,11 @@ export async function listClips(): Promise<ClipFile[]> {
 interface ProbeStream {
   index: number
   codec_type: string
+  codec_name?: string
   width?: number
   height?: number
   channels?: number
+  disposition?: { attached_pic?: number }
 }
 
 const detailsCache = new Map<string, Promise<ClipDetails>>()
@@ -73,8 +77,23 @@ export function clipDetails(path: string): Promise<ClipDetails> {
 async function probe(path: string): Promise<ClipDetails> {
   const { stdout } = await run(ffprobe, ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', path])
   const data = JSON.parse(stdout) as { format: { duration?: string }; streams: ProbeStream[] }
-  const video = data.streams.find((s) => s.codec_type === 'video')
+  // Une pochette d'album (mp3, m4a) est un flux vidéo « attached_pic » : ce n'est pas une vidéo.
+  const video = data.streams.find((s) => s.codec_type === 'video' && !s.disposition?.attached_pic)
   const audio = data.streams.filter((s) => s.codec_type === 'audio')
+
+  // Un fichier audio (fond sonore) : une seule piste, au nom du fichier.
+  if (!video) {
+    return {
+      path,
+      duration: Number(data.format.duration ?? 0),
+      width: 0,
+      height: 0,
+      videoStream: null,
+      audioTracks: audio.slice(0, 1).map((s) => ({
+        stream: s.index, name: basename(path, extname(path)), channels: s.channels ?? 2, codec: s.codec_name ?? ''
+      }))
+    }
+  }
 
   // FFmpeg ne lit pas les noms de pistes écrits par ReplayClip : on les prend dans l'en-tête MP4.
   const mp4Audio = (await readMp4Tracks(path)).filter((t) => t.kind === 'audio')
@@ -83,7 +102,8 @@ async function probe(path: string): Promise<ClipDetails> {
     const info: AudioTrackInfo = {
       stream: stream.index,
       name: mp4?.name ?? REPLAYCLIP_TRACK_NAMES[i] ?? `Piste ${i + 1}`,
-      channels: stream.channels ?? 2
+      channels: stream.channels ?? 2,
+      codec: stream.codec_name ?? ''
     }
     return { info, enabled: mp4?.enabled ?? true }
   })
@@ -94,9 +114,9 @@ async function probe(path: string): Promise<ClipDetails> {
   return {
     path,
     duration: Number(data.format.duration ?? 0),
-    width: video?.width ?? 0,
-    height: video?.height ?? 0,
-    videoStream: video?.index ?? null,
+    width: video.width ?? 0,
+    height: video.height ?? 0,
+    videoStream: video.index,
     audioTracks: (separate.length > 0 ? separate : sansMix).map((t) => t.info)
   }
 }
@@ -135,10 +155,12 @@ export async function thumbnail(path: string): Promise<string> {
   return toMediaURL(file)
 }
 
-/** Extrait une piste audio sans la réencoder : c'est presque instantané. */
+/** Extrait une piste audio : sans la réencoder si c'est de l'AAC (presque instantané), sinon en la convertissant. */
 export async function audioTrack(path: string, stream: number): Promise<string> {
+  const codec = (await clipDetails(path)).audioTracks.find((t) => t.stream === stream)?.codec
+  const encoding = codec === 'aac' ? ['-c', 'copy'] : ['-c:a', 'aac', '-b:a', '256k']
   const file = await cached('audio', `${await cacheKey(path, String(stream))}.m4a`, async (output) => {
-    await run(ffmpeg, ['-v', 'error', '-y', '-i', path, '-map', `0:${stream}`, '-vn', '-c', 'copy', output])
+    await run(ffmpeg, ['-v', 'error', '-y', '-i', path, '-map', `0:${stream}`, '-vn', ...encoding, output])
   })
   return toMediaURL(file)
 }

@@ -1,4 +1,6 @@
-import { moveSegments, removeSegments, splitAt, toggleLink } from '@shared/project'
+import type { ClipDetails, Lane } from '@shared/types'
+import { insertAudioFile, moveSegments, removeLane, removeSegments, splitAt, toggleLink } from '@shared/project'
+import { measureLoudness, normalizationGains } from '@/engine/loudness'
 import { player } from '@/engine/player'
 import { useProject } from './project'
 import { instantLayout, useTimeline } from './timeline'
@@ -46,9 +48,91 @@ export function commitDrag(): void {
 
 /** Retire de la sélection les morceaux qui n'existent plus (après une suppression, une annulation…). */
 export function pruneSelection(): void {
-  const { selection: current, setSelection } = useTimeline.getState()
+  const { selection: current, setSelection, inspectedLane, inspect } = useTimeline.getState()
+  if (inspectedLane && !useProject.getState().project.lanes.some((l) => l.id === inspectedLane)) inspect(null)
   if (current.size === 0) return
   const existing = new Set(useProject.getState().project.segments.map((s) => s.id))
   const kept = new Set([...current].filter((id) => existing.has(id)))
   if (kept.size !== current.size) setSelection(kept)
+}
+
+// ——— Pistes ———
+
+function updateLane(laneId: string, change: (lane: Lane) => void, mergeKey?: string): void {
+  useProject.getState().update((draft) => {
+    const lane = draft.lanes.find((l) => l.id === laneId)
+    if (lane) change(lane)
+  }, mergeKey)
+}
+
+/** Volume de 0 à 2 : les crans successifs d'un même glissé ne font qu'une étape d'annulation. */
+export function setLaneVolume(laneId: string, volume: number): void {
+  updateLane(laneId, (lane) => (lane.volume = Math.min(2, Math.max(0, volume))), `volume:${laneId}`)
+}
+
+export function toggleLaneMute(laneId: string): void {
+  updateLane(laneId, (lane) => (lane.muted = !lane.muted))
+}
+
+export function toggleLaneNormalized(laneId: string): void {
+  updateLane(laneId, (lane) => (lane.normalized = !lane.normalized))
+}
+
+export function renameLane(laneId: string, name: string): void {
+  const trimmed = name.trim()
+  if (trimmed) updateLane(laneId, (lane) => (lane.name = trimmed))
+}
+
+export function deleteLane(laneId: string): void {
+  useTimeline.getState().inspect(null)
+  useProject.getState().update((draft) => removeLane(draft, laneId))
+}
+
+/**
+ * Pose des fichiers audio les uns à la suite des autres à partir de `time`, sur la piste de fond sonore `laneId`
+ * (sinon une nouvelle piste par fichier). Une seule étape d'annulation.
+ */
+export async function addAudioFiles(paths: string[], time: number, laneId?: string): Promise<void> {
+  const files = (await Promise.all(paths.map((path) => window.api.clipDetails(path).catch(() => null)))).filter(
+    (file): file is ClipDetails => file !== null && file.audioTracks.length > 0
+  )
+  if (files.length === 0) return
+  let added: string | null = null
+  useProject.getState().update((draft) => {
+    let at = time
+    for (const file of files) {
+      // Le premier fichier crée la piste si besoin, les suivants s'y enchaînent.
+      added = insertAudioFile(draft, file, at, laneId ?? added ?? undefined) ?? added
+      at += file.duration
+    }
+  })
+  if (added) useTimeline.getState().inspect(added)
+}
+
+/** Bouton « Normaliser » : mesure chaque piste incluse sur ce qui est utilisé, puis règle les volumes pour qu'elles sonnent pareil. */
+export async function normalizeLanes(): Promise<void> {
+  const { project } = useProject.getState()
+  const lanes = project.lanes.filter((l) => l.kind === 'audio' && l.normalized && !l.muted)
+  const levels = new Map<string, number | null>()
+  await Promise.all(
+    lanes.map(async (lane) => {
+      const ranges = await Promise.all(
+        project.segments
+          .filter((s) => s.laneId === lane.id)
+          .map(async (s) => {
+            const buffer = await player.audioBuffer(s.source, s.stream)
+            return buffer ? { buffer, start: s.sourceStart, duration: s.duration } : null
+          })
+      )
+      levels.set(lane.id, measureLoudness(ranges.filter((r) => r !== null)))
+    })
+  )
+  const gains = normalizationGains(levels)
+  if (gains.size === 0) return
+  useProject.getState().update((draft) => {
+    for (const lane of draft.lanes) {
+      const gain = gains.get(lane.id)
+      if (gain !== undefined) lane.volume = gain
+    }
+  })
 }

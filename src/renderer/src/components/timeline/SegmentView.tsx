@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import type { LaneKind, Segment } from '@shared/types'
+import type { Lane, Segment } from '@shared/types'
 import { snapTimes, withLinked } from '@shared/project'
 import { player } from '@/engine/player'
 import { commitDrag } from '@/state/editing'
@@ -20,12 +20,13 @@ const DRAG_THRESHOLD = 3
 
 interface SegmentViewProps {
   segment: Segment
-  kind: LaneKind
+  lane: Lane
   pps: number
   onContextMenu(x: number, y: number): void
 }
 
-export function SegmentView({ segment, kind, pps, onContextMenu }: SegmentViewProps): React.JSX.Element {
+export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewProps): React.JSX.Element {
+  const kind = lane.kind
   const selected = useTimeline((s) => s.selection.has(segment.id))
   const delta = useTimeline((s) => (s.drag?.ids.has(segment.id) ? s.drag.delta : 0))
   const dragging = useTimeline((s) => s.drag?.ids.has(segment.id) ?? false)
@@ -35,7 +36,8 @@ export function SegmentView({ segment, kind, pps, onContextMenu }: SegmentViewPr
 
   return (
     <motion.div
-      className={`${styles.segment} ${kind === 'video' ? styles.video : styles.audio}`}
+      className={`${styles.segment} ${kind === 'video' ? styles.video : lane.music ? styles.music : styles.audio}`}
+      data-muted={lane.muted}
       data-selected={selected}
       data-dragging={dragging}
       initial={{ opacity: 0, x: 6 }}
@@ -57,8 +59,15 @@ export function SegmentView({ segment, kind, pps, onContextMenu }: SegmentViewPr
         <VideoContent segment={segment} />
       ) : (
         <>
-          <Waveform source={segment.source} stream={segment.stream} sourceStart={segment.sourceStart} duration={segment.duration} color="var(--audio-wave)" />
-          {!segment.linkId && (
+          <Waveform
+            source={segment.source}
+            stream={segment.stream}
+            sourceStart={segment.sourceStart}
+            duration={segment.duration}
+            color={lane.music ? 'var(--music-wave)' : 'var(--audio-wave)'}
+            gain={lane.volume}
+          />
+          {!segment.linkId && !lane.music && (
             <span className={styles.unlinked} title="Délié">
               <Icon name="unlink" size={11} />
             </span>

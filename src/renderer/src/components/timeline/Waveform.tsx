@@ -10,6 +10,8 @@ interface WaveformProps {
   sourceStart: number
   duration: number
   color: string
+  /** Volume de la piste (0 à 2) : l'onde grandit ou rapetisse avec lui. */
+  gain?: number
 }
 
 // Plusieurs segments partagent souvent la même source : le tracé n'est construit qu'une fois.
@@ -24,7 +26,7 @@ function pathFor(peaks: Float32Array): string {
   return d
 }
 
-export function Waveform({ source, stream, sourceStart, duration, color }: WaveformProps): JSX.Element | null {
+export function Waveform({ source, stream, sourceStart, duration, color, gain = 1 }: WaveformProps): JSX.Element | null {
   const key = `${source}|${stream}`
   // Résultat rattaché à sa clé : un résultat d'une ancienne source n'est jamais affiché.
   const [loaded, setLoaded] = useState<{ key: string; peaks: Float32Array | null } | null>(null)
@@ -55,7 +57,15 @@ export function Waveform({ source, stream, sourceStart, duration, color }: Wavef
       // Le parent doit être positionné ; le SVG ne capte jamais la souris.
       style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
     >
-      <path d={d} fill={color} />
+      {/* Mise à l'échelle autour de la ligne médiane (y = 1) ; au-delà de la hauteur, l'onde est simplement rognée. */}
+      <motion.g
+        initial={false}
+        animate={{ scaleY: gain }}
+        transition={{ type: 'spring', duration: 0.35, bounce: 0.15 }}
+        style={{ originY: 0.5, transformBox: 'view-box' }}
+      >
+        <path d={d} fill={color} />
+      </motion.g>
     </motion.svg>
   )
 }

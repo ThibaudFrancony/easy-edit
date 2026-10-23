@@ -66,6 +66,11 @@
   padding: 0 12px;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
@@ -75,6 +80,82 @@
 .head:hover {
   background: var(--hover);
   color: var(--text);
+}
+
+.head[data-inspected='true'] {
+  background: var(--selected);
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.head[data-kind='video'] {
+  cursor: default;
+}
+
+.head[data-kind='video']:hover {
+  background: transparent;
+  color: var(--text-2);
+}
+
+.headName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.headMuted {
+  display: flex;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.addLane {
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  border: 1px dashed var(--control-strong);
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.addLane:hover {
+  border-color: var(--text-3);
+  color: var(--text);
+  background: var(--hover);
+}
+
+.toolButton {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid #262a32;
+  color: #c5c9d1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.toolButton:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.toolButton:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.dropMarker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+  pointer-events: none;
 }
 
 .scroller {
@@ -148,6 +229,14 @@
 
 .audio {
   background: var(--audio);
+}
+
+.music {
+  background: var(--music);
+}
+
+.segment[data-muted='true'] {
+  opacity: 0.4;
 }
 
 .label {

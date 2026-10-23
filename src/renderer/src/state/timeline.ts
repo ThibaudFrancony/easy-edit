@@ -26,7 +26,10 @@ interface TimelineState {
   scrollRequest: ScrollRequest | null
   selection: Set<string>
   drag: DragState | null
+  /** La piste dont les réglages sont ouverts dans l'inspecteur. */
+  inspectedLane: string | null
   setSelection(selection: Set<string>): void
+  inspect(laneId: string | null): void
   setDrag(drag: DragState | null): void
   setViewport(scrollLeft: number, viewportWidth: number): void
   /** Change le zoom en gardant `anchorTime` au même endroit à l'écran. */
@@ -45,7 +48,9 @@ export const useTimeline = create<TimelineState>()((set, get) => ({
   scrollRequest: null,
   selection: new Set(),
   drag: null,
+  inspectedLane: null,
   setSelection: (selection) => set({ selection }),
+  inspect: (inspectedLane) => set({ inspectedLane }),
   setDrag: (drag) => set({ drag }),
   setViewport: (scrollLeft, viewportWidth) => set({ scrollLeft, viewportWidth }),
   zoomTo: (target, anchorTime) => {

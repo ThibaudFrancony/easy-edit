@@ -15,6 +15,8 @@ export interface AudioTrackInfo {
   stream: number
   name: string
   channels: number
+  /** Codec FFmpeg (« aac », « mp3 »…) : l'AAC est extrait tel quel, le reste est converti. */
+  codec: string
 }
 
 /** Ce que FFmpeg et l'en-tête MP4 nous apprennent d'un clip. */
@@ -40,6 +42,8 @@ export interface Lane {
   muted: boolean
   /** Prise en compte par le bouton « Normaliser ». */
   normalized: boolean
+  /** Piste de fond sonore ajoutée à la main (renommable, supprimable). Absente des anciens projets. */
+  music?: boolean
 }
 
 /** Un morceau posé sur une piste : une plage d'un flux d'un fichier source, placée à un instant de la timeline. */
@@ -91,6 +95,10 @@ export interface EasyEditAPI {
   thumbnail(path: string): Promise<string>
   /** URL `media://` d'une piste audio extraite du clip, gardée en cache. */
   audioTrack(path: string, stream: number): Promise<string>
+  /** Fenêtre de choix de fichiers audio (fonds sonores). */
+  pickAudioFiles(): Promise<string[]>
+  /** Chemin d'un fichier glissé depuis le Finder. */
+  pathForFile(file: File): string
   /** URL `media://` pour lire directement un fichier. */
   mediaURL(path: string): string
   loadInitialProject(): Promise<OpenedProject>

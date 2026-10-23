@@ -172,3 +172,29 @@ export function toggleLink(project: Project, ids: Set<string>): void {
   const linkId = linked || selected.length < 2 ? null : newID()
   for (const s of selected) s.linkId = linkId
 }
+
+/**
+ * Pose un fichier audio (fond sonore) à `time`, sur la piste `laneId` si c'est une piste de fond sonore,
+ * sinon sur une nouvelle piste au nom du fichier. Renvoie la piste utilisée.
+ */
+export function insertAudioFile(project: Project, file: ClipDetails, time: number, laneId?: string): string | null {
+  const track = file.audioTracks[0]
+  if (!track) return null
+  let lane = laneId ? project.lanes.find((l) => l.id === laneId && l.music) : undefined
+  if (!lane) {
+    lane = { id: newID(), kind: 'audio', name: track.name, volume: 1, muted: false, normalized: true, music: true }
+    project.lanes.push(lane)
+  }
+  const start = Math.max(0, time)
+  clearRange(project, lane.id, start, start + file.duration)
+  project.segments.push({
+    id: newID(), laneId: lane.id, source: file.path, stream: track.stream, sourceStart: 0, duration: file.duration, start, linkId: null
+  })
+  return lane.id
+}
+
+/** Retire une piste et tout ce qu'elle contient. */
+export function removeLane(project: Project, laneId: string): void {
+  project.lanes = project.lanes.filter((l) => l.id !== laneId)
+  project.segments = project.segments.filter((s) => s.laneId !== laneId)
+}

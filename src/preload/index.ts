@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { EasyEditAPI, MenuAction, OpenedProject } from '@shared/types'
 import { toMediaURL } from '@shared/media-url'
 
@@ -13,6 +13,8 @@ const api: EasyEditAPI = {
   clipDetails: (path) => ipcRenderer.invoke('clips:details', path),
   thumbnail: (path) => ipcRenderer.invoke('clips:thumbnail', path),
   audioTrack: (path, stream) => ipcRenderer.invoke('clips:audio-track', path, stream),
+  pickAudioFiles: () => ipcRenderer.invoke('audio:pick'),
+  pathForFile: (file) => webUtils.getPathForFile(file),
   mediaURL: (path) => toMediaURL(path),
   loadInitialProject: () => ipcRenderer.invoke('project:initial'),
   saveProject: (opened) => ipcRenderer.invoke('project:save', opened),

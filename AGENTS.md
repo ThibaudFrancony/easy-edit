@@ -75,7 +75,7 @@ src/
                    protocole media:// (protocol.ts), fichiers projet (projects.ts)
   preload/         pont sécurisé : expose `window.api` (type `EasyEditAPI`)
   renderer/src/    interface React
-    engine/        moteur de lecture (horloge, Web Audio)
+    engine/        moteur de lecture (horloge, Web Audio), formes d'onde, mesure du niveau sonore
     state/         stores Zustand : projet (seule porte d'entrée des modifications), bibliothèque, timeline
     components/    Library, Preview, timeline/
     lib/           motion.ts (animations), format.ts
@@ -84,7 +84,8 @@ scripts/package.sh construit, signe et installe l'app
 
 - Toute modification du montage passe par `useProject.getState().update(draft => …)` : elle est annulable (⌘Z) et enregistrée automatiquement. Les actions de montage (couper, supprimer, lier…) sont dans `state/editing.ts` ; la sélection et le glissé en cours dans `state/timeline.ts`.
 - Les opérations sur un projet (`insertClip`, `splitAt`, `moveSegments`, `removeSegments`, `toggleLink`…) sont des fonctions pures dans `src/shared/project.ts`.
-- Les raccourcis de montage sont des entrées du menu Montage (processus principal) qui envoient une `MenuAction` à l'interface ; ceux de lecture (Espace, J/K/L, flèches) sont dans `useKeyboard.ts`.
+- Tous les raccourcis sont gérés dans `useKeyboard.ts`. Ceux du menu y sont affichés avec `registerAccelerator: false`, pour que S, ⌫ ou ⌘Z gardent leur rôle normal dans un champ de texte ; cliquer l'entrée de menu envoie une `MenuAction`.
+- Les modifications successives d'un même réglage (un curseur qu'on glisse) passent un `mergeKey` à `update` : une seule étape d'annulation.
 - Projets : `~/Movies/Easy Edit/Projets/*.easyedit` (JSON). Caches (vignettes, pistes audio extraites) : `~/Library/Application Support/Easy Edit/Media`.
 
 ## Compiler et lancer
@@ -111,7 +112,7 @@ Le processus principal (`src/main`) n'est pas rechargé à chaud : relancer `npm
 
 ## Feuille de route
 
-Fait : lot 1 (projets, bibliothèque, aperçu et lecture de la timeline, glisser-déposer aimanté, zoom) et lot 2 (sélection, déplacement, coupe, suppression, liaison, annuler, formes d'onde).
+Fait : lot 1 (projets, bibliothèque, aperçu et lecture de la timeline, glisser-déposer aimanté, zoom) lot 2 (sélection, déplacement, coupe, suppression, liaison, annuler, formes d'onde) et lot 3 (inspecteur de piste, volume jusqu'à 200 %, fonds sonores, normalisation).
 
 La suite, et les décisions d'UI et d'UX déjà prises, sont dans [TODO.md](TODO.md). On avance lot par lot et on coche au fur et à mesure.
 

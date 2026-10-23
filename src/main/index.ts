@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { BrowserWindow, Menu, app, dialog, ipcMain, shell } from 'electron'
 import type { MenuAction, OpenedProject } from '@shared/types'
 import { emptyProject } from '@shared/project'
-import { audioTrack, clipDetails, clipsFolder, listClips, thumbnail } from './media'
+import { AUDIO_EXTENSIONS, audioTrack, clipDetails, clipsFolder, listClips, thumbnail } from './media'
 import {
   PROJECT_EXTENSION, loadInitialProject, newProjectPath, projectsFolder, readProject, rememberLastProject, writeProject
 } from './projects'
@@ -85,23 +85,24 @@ function buildMenu(): void {
       {
         label: 'Édition',
         submenu: [
-          { label: 'Annuler', accelerator: 'CmdOrCtrl+Z', click: menuAction('undo') },
-          { label: 'Rétablir', accelerator: 'Shift+CmdOrCtrl+Z', click: menuAction('redo') },
+          { label: 'Annuler', accelerator: 'CmdOrCtrl+Z', registerAccelerator: false, click: menuAction('undo') },
+          { label: 'Rétablir', accelerator: 'Shift+CmdOrCtrl+Z', registerAccelerator: false, click: menuAction('redo') },
           { type: 'separator' },
           { role: 'cut', label: 'Couper le texte' },
           { role: 'copy', label: 'Copier' },
           { role: 'paste', label: 'Coller' },
-          { label: 'Tout sélectionner', accelerator: 'CmdOrCtrl+A', click: menuAction('select-all') }
+          { label: 'Tout sélectionner', accelerator: 'CmdOrCtrl+A', registerAccelerator: false, click: menuAction('select-all') }
         ]
       },
       {
         label: 'Montage',
+        // Raccourcis affichés ici mais gérés par l'interface (useKeyboard.ts), pour ne pas gêner la saisie de texte.
         submenu: [
-          { label: 'Couper au curseur', accelerator: 'S', click: menuAction('split') },
-          { label: 'Supprimer', accelerator: 'Backspace', click: menuAction('delete') },
-          { label: 'Supprimer et refermer le trou', accelerator: 'Shift+Backspace', click: menuAction('delete-close-gap') },
+          { label: 'Couper au curseur', accelerator: 'S', registerAccelerator: false, click: menuAction('split') },
+          { label: 'Supprimer', accelerator: 'Backspace', registerAccelerator: false, click: menuAction('delete') },
+          { label: 'Supprimer et refermer le trou', accelerator: 'Shift+Backspace', registerAccelerator: false, click: menuAction('delete-close-gap') },
           { type: 'separator' },
-          { label: 'Lier ou délier', accelerator: 'CmdOrCtrl+L', click: menuAction('toggle-link') }
+          { label: 'Lier ou délier', accelerator: 'CmdOrCtrl+L', registerAccelerator: false, click: menuAction('toggle-link') }
         ]
       },
       {
@@ -109,7 +110,7 @@ function buildMenu(): void {
         submenu: [
           { label: 'Zoom avant', accelerator: 'CmdOrCtrl+=', click: menuAction('zoom-in') },
           { label: 'Zoom arrière', accelerator: 'CmdOrCtrl+-', click: menuAction('zoom-out') },
-          { label: 'Ajuster la timeline', accelerator: 'Shift+Z', click: menuAction('zoom-fit') },
+          { label: 'Ajuster la timeline', accelerator: 'Shift+Z', registerAccelerator: false, click: menuAction('zoom-fit') },
           { type: 'separator' },
           { role: 'togglefullscreen' },
           ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' as const }])
@@ -129,6 +130,15 @@ ipcMain.handle('project:save', (_event, opened: OpenedProject) => writeProject(o
 ipcMain.handle('project:new', () => newProject())
 ipcMain.handle('project:open', () => openProject())
 ipcMain.handle('reveal', (_event, path: string) => shell.showItemInFolder(path))
+ipcMain.handle('audio:pick', async () => {
+  const options = {
+    defaultPath: join(app.getPath('home'), 'Music'),
+    properties: ['openFile' as const, 'multiSelections' as const],
+    filters: [{ name: 'Sons', extensions: AUDIO_EXTENSIONS }]
+  }
+  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+  return result.canceled ? [] : result.filePaths
+})
 ipcMain.handle('clips:open-folder', async () => {
   await mkdir(clipsFolder, { recursive: true })
   await shell.openPath(clipsFolder)
