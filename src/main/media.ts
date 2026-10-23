@@ -16,7 +16,7 @@ const run = promisify(execFile)
 
 // Dans l'app empaquetée, les binaires sont sortis de l'archive asar (voir `asarUnpack`).
 const unpacked = (path: string): string => path.replace('app.asar', 'app.asar.unpacked')
-const ffmpeg = unpacked(ffmpegStatic as unknown as string)
+export const ffmpeg = unpacked(ffmpegStatic as unknown as string)
 const ffprobe = unpacked(ffprobeStatic.path)
 
 export const clipsFolder = join(homedir(), 'Movies', 'Clips')
@@ -157,10 +157,14 @@ export async function thumbnail(path: string): Promise<string> {
 
 /** Extrait une piste audio : sans la réencoder si c'est de l'AAC (presque instantané), sinon en la convertissant. */
 export async function audioTrack(path: string, stream: number): Promise<string> {
+  return toMediaURL(await audioTrackFile(path, stream))
+}
+
+/** Le fichier `.m4a` (en cache) d'une piste audio d'un clip ou d'un fond sonore. */
+export async function audioTrackFile(path: string, stream: number): Promise<string> {
   const codec = (await clipDetails(path)).audioTracks.find((t) => t.stream === stream)?.codec
   const encoding = codec === 'aac' ? ['-c', 'copy'] : ['-c:a', 'aac', '-b:a', '256k']
-  const file = await cached('audio', `${await cacheKey(path, String(stream))}.m4a`, async (output) => {
+  return cached('audio', `${await cacheKey(path, String(stream))}.m4a`, async (output) => {
     await run(ffmpeg, ['-v', 'error', '-y', '-i', path, '-map', `0:${stream}`, '-vn', ...encoding, output])
   })
-  return toMediaURL(file)
 }

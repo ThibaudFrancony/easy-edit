@@ -30,6 +30,33 @@
   color: var(--text-2);
 }
 
+.grow {
+  flex: 1;
+}
+
+.exportButton {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+  transition: filter 0.2s, opacity 0.2s;
+}
+
+.exportButton:hover {
+  filter: brightness(1.08);
+}
+
+.exportButton:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .workspace {
   flex: 1;
   min-height: 0;

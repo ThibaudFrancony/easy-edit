@@ -39,7 +39,7 @@ Une seule fenêtre, sombre :
 - **Au centre, l'aperçu** : le lecteur et les commandes de lecture.
 - **À droite, l'inspecteur** (lot 3) : les réglages de la piste sélectionnée, qui glissent depuis la droite.
 - **En bas, la timeline** : une ligne vidéo, puis une ligne par piste audio.
-- **L'export** se fera dans un panneau qui glisse depuis le haut de la fenêtre, pas dans une nouvelle fenêtre.
+- **L'export** se fait dans un panneau qui glisse depuis le haut de la fenêtre (bouton « Exporter » de la barre du haut, ⌘E), pas dans une nouvelle fenêtre.
 - Raccourcis comme dans les logiciels pros : Espace (lecture), J/K/L, ← → (image par image).
 
 Les textes de l'interface sont en français.
@@ -72,7 +72,8 @@ Choisie le 23/10/2026 parmi trois maquettes : https://claude.ai/artifact/FkhRjvG
 src/
   shared/          types et opérations pures sur un projet (utilisés des deux côtés)
   main/            processus Node : fenêtre, menus, FFmpeg (media.ts), lecteur MP4 (mp4.ts),
-                   protocole media:// (protocol.ts), fichiers projet (projects.ts)
+                   protocole media:// (protocol.ts), fichiers projet (projects.ts),
+                   export : commande FFmpeg (export.ts) et lancement avec progression (ffmpeg-run.ts)
   preload/         pont sécurisé : expose `window.api` (type `EasyEditAPI`)
   renderer/src/    interface React
     engine/        moteur de lecture (horloge, Web Audio), formes d'onde, mesure du niveau sonore
@@ -86,7 +87,7 @@ scripts/package.sh construit, signe et installe l'app
 - Les opérations sur un projet (`insertClip`, `splitAt`, `moveSegments`, `removeSegments`, `toggleLink`…) sont des fonctions pures dans `src/shared/project.ts`.
 - Tous les raccourcis sont gérés dans `useKeyboard.ts`. Ceux du menu y sont affichés avec `registerAccelerator: false`, pour que S, ⌫ ou ⌘Z gardent leur rôle normal dans un champ de texte ; cliquer l'entrée de menu envoie une `MenuAction`.
 - Les modifications successives d'un même réglage (un curseur qu'on glisse) passent un `mergeKey` à `update` : une seule étape d'annulation.
-- Projets : `~/Movies/Easy Edit/Projets/*.easyedit` (JSON). Caches (vignettes, pistes audio extraites) : `~/Library/Application Support/Easy Edit/Media`.
+- Projets : `~/Movies/Easy Edit/Projets/*.easyedit` (JSON). Exports : `~/Movies/Easy Edit/Exports`. Caches (vignettes, pistes audio extraites) : `~/Library/Application Support/Easy Edit/Media`.
 
 ## Compiler et lancer
 
@@ -112,7 +113,11 @@ Le processus principal (`src/main`) n'est pas rechargé à chaud : relancer `npm
 
 ## Feuille de route
 
-Fait : lot 1 (projets, bibliothèque, aperçu et lecture de la timeline, glisser-déposer aimanté, zoom) lot 2 (sélection, déplacement, coupe, suppression, liaison, annuler, formes d'onde) et lot 3 (inspecteur de piste, volume jusqu'à 200 %, fonds sonores, normalisation).
+Fait :
+- lot 1 : projets, bibliothèque, aperçu et lecture de la timeline, glisser-déposer aimanté, zoom ;
+- lot 2 : sélection, déplacement, coupe, suppression, liaison, annuler, formes d'onde ;
+- lot 3 : inspecteur de piste, volume jusqu'à 200 %, fonds sonores, normalisation ;
+- lot 4 : export .mp4.
 
 La suite, et les décisions d'UI et d'UX déjà prises, sont dans [TODO.md](TODO.md). On avance lot par lot et on coche au fur et à mesure.
 

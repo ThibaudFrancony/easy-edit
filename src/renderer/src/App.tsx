@@ -7,6 +7,9 @@ import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { fileName } from '@/lib/format'
+import { useExport } from '@/state/export'
+import { ExportPanel } from './components/ExportPanel'
+import { Icon } from './components/Icon'
 import { Inspector } from './components/Inspector'
 import { Library } from './components/Library'
 import { Preview } from './components/Preview'
@@ -16,6 +19,7 @@ import styles from './App.module.css'
 
 export function App(): React.JSX.Element {
   const path = useProject((s) => s.path)
+  const empty = useProject((s) => s.project.segments.length === 0)
   useKeyboard()
   useAppEvents()
 
@@ -29,6 +33,11 @@ export function App(): React.JSX.Element {
             <span className={styles.projectName}>{fileName(path)}</span>
           </>
         )}
+        <div className={styles.grow} />
+        <button className={styles.exportButton} disabled={empty} onClick={() => void useExport.getState().show()}>
+          <Icon name="export" size={15} />
+          Exporter
+        </button>
       </header>
       <div className={styles.workspace}>
         <Library />
@@ -36,6 +45,7 @@ export function App(): React.JSX.Element {
         <Inspector />
       </div>
       <Timeline />
+      <ExportPanel />
     </div>
   )
 }
@@ -70,7 +80,8 @@ function useAppEvents(): void {
         split: splitAtPlayhead,
         delete: () => deleteSelection(false),
         'delete-close-gap': () => deleteSelection(true),
-        'toggle-link': toggleLinkSelection
+        'toggle-link': toggleLinkSelection,
+        export: () => void useExport.getState().show()
       }
       actions[action]()
     })

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { projectDuration } from '@shared/project'
 import { player, usePlayback } from '@/engine/player'
 import { deleteSelection, selectAll, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
+import { useExport } from '@/state/export'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 
@@ -15,6 +16,8 @@ export function useKeyboard(): void {
       const target = event.target as HTMLElement | null
       if (target?.closest('input:not([type="range"]), textarea, [contenteditable="true"]')) return
       if (event.altKey || event.ctrlKey) return
+      // Le panneau d'export a ses propres touches (Entrée, Échap).
+      if (useExport.getState().open) return
 
       const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
       const command = event.metaKey

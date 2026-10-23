@@ -74,6 +74,23 @@ export interface OpenedProject {
   project: Project
 }
 
+/** « source » : la taille des clips d'origine ; « 1080p » : 1080 lignes, même format d'image. */
+export type ExportQuality = 'source' | '1080p'
+
+export interface ExportRequest {
+  project: Project
+  folder: string
+  name: string
+  quality: ExportQuality
+}
+
+/** Ce que l'interface apprend de l'export en cours. */
+export type ExportEvent =
+  | { type: 'progress'; fraction: number }
+  | { type: 'done'; path: string }
+  | { type: 'error'; message: string }
+  | { type: 'cancelled' }
+
 /** Actions envoyées par le menu de l'app à l'interface. */
 export type MenuAction =
   | 'zoom-in'
@@ -86,6 +103,7 @@ export type MenuAction =
   | 'delete'
   | 'delete-close-gap'
   | 'toggle-link'
+  | 'export'
 
 /** Ce que le preload expose à l'interface sous `window.api`. */
 export interface EasyEditAPI {
@@ -111,4 +129,12 @@ export interface EasyEditAPI {
   /** Appelé quand un projet est ouvert ou créé depuis le menu. */
   onProjectOpened(callback: (opened: OpenedProject) => void): () => void
   onMenu(callback: (action: MenuAction) => void): () => void
+  /** Dossier proposé par défaut pour les exports. */
+  exportsFolder(): Promise<string>
+  /** Choix d'un dossier ; null si on annule. */
+  pickFolder(current: string): Promise<string | null>
+  /** Lance l'export ; la suite arrive par `onExport`. */
+  startExport(request: ExportRequest): Promise<void>
+  cancelExport(): Promise<void>
+  onExport(callback: (event: ExportEvent) => void): () => void
 }

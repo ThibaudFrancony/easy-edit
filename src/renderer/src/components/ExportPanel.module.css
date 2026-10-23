@@ -1,0 +1,227 @@
+.backdrop {
+  position: fixed;
+  inset: 48px 0 0;
+  z-index: 40;
+  background: #0b0c0f99;
+}
+
+.panel {
+  position: fixed;
+  z-index: 41;
+  top: 60px;
+  left: 50%;
+  width: 420px;
+  margin-left: -210px;
+  padding: 18px 20px 20px;
+  border-radius: 10px;
+  background: #14161b;
+  border: 1px solid var(--control-strong);
+  box-shadow: 0 24px 64px #00000099;
+}
+
+.settings,
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -4px -10px 2px 0;
+}
+
+.title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.field {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--control-strong);
+  background: var(--lane);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  transition: border-color 0.2s;
+}
+
+.field:focus-within {
+  border-color: var(--accent);
+}
+
+.field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: 400 13px var(--font);
+}
+
+.field span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.folderRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}
+
+.folder {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--lane);
+  border: 1px solid var(--line);
+}
+
+.segment {
+  position: relative;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-2);
+  transition: color 0.2s;
+}
+
+.segment[aria-checked='true'] {
+  color: var(--text);
+}
+
+.segmentHighlight {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  background: var(--control-strong);
+}
+
+.segmentLabel {
+  position: relative;
+}
+
+.primary,
+.secondary {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  transition: filter 0.2s, background 0.2s, color 0.2s, opacity 0.2s;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.secondary {
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--control-strong);
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.secondary:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.error {
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  color: #ff8a5c;
+  white-space: pre-wrap;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progressName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--control);
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  background: var(--accent);
+}
+
+.progress .secondary {
+  align-self: flex-end;
+}
+
+.done {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 14px 12px;
+}
+
+.check {
+  width: 32px;
+  height: 32px;
+  border-radius: 16px;
+  background: var(--accent);
+  color: var(--on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.doneName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.doneActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

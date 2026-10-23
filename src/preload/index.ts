@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { EasyEditAPI, MenuAction, OpenedProject } from '@shared/types'
+import type { EasyEditAPI, ExportEvent, MenuAction, OpenedProject } from '@shared/types'
 import { toMediaURL } from '@shared/media-url'
 
 function listen<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -23,7 +23,12 @@ const api: EasyEditAPI = {
   revealInFinder: (path) => ipcRenderer.invoke('reveal', path),
   openClipsFolder: () => ipcRenderer.invoke('clips:open-folder'),
   onProjectOpened: (callback) => listen<OpenedProject>('project-opened', callback),
-  onMenu: (callback) => listen<MenuAction>('menu', callback)
+  onMenu: (callback) => listen<MenuAction>('menu', callback),
+  exportsFolder: () => ipcRenderer.invoke('export:folder'),
+  pickFolder: (current) => ipcRenderer.invoke('export:pick-folder', current),
+  startExport: (request) => ipcRenderer.invoke('export:start', request),
+  cancelExport: () => ipcRenderer.invoke('export:cancel'),
+  onExport: (callback) => listen<ExportEvent>('export', callback)
 }
 
 contextBridge.exposeInMainWorld('api', api)

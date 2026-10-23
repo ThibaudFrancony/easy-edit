@@ -1,9 +1,11 @@
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { BrowserWindow, Menu, app, dialog, ipcMain, shell } from 'electron'
-import type { MenuAction, OpenedProject } from '@shared/types'
+import type { ExportEvent, ExportRequest, MenuAction, OpenedProject } from '@shared/types'
 import { emptyProject } from '@shared/project'
-import { AUDIO_EXTENSIONS, audioTrack, clipDetails, clipsFolder, listClips, thumbnail } from './media'
+import { buildExport, exportsFolder, freeExportPath } from './export'
+import { type RunningFFmpeg, runFFmpeg } from './ffmpeg-run'
+import { AUDIO_EXTENSIONS, audioTrack, clipDetails, clipsFolder, ffmpeg, listClips, thumbnail } from './media'
 import {
   PROJECT_EXTENSION, loadInitialProject, newProjectPath, projectsFolder, readProject, rememberLastProject, writeProject
 } from './projects'
@@ -79,6 +81,8 @@ function buildMenu(): void {
             }
           },
           { type: 'separator' },
+          { label: 'Exporter…', accelerator: 'CmdOrCtrl+E', click: menuAction('export') },
+          { type: 'separator' },
           { role: 'close' }
         ]
       },
@@ -142,6 +146,36 @@ ipcMain.handle('audio:pick', async () => {
 ipcMain.handle('clips:open-folder', async () => {
   await mkdir(clipsFolder, { recursive: true })
   await shell.openPath(clipsFolder)
+})
+
+// ——— Export ———
+
+let running: RunningFFmpeg | null = null
+const sendExport = (event: ExportEvent): void => send('export', event)
+
+ipcMain.handle('export:folder', () => exportsFolder)
+ipcMain.handle('export:pick-folder', async (_event, current: string) => {
+  const options = { defaultPath: current, properties: ['openDirectory' as const, 'createDirectory' as const] }
+  const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+  return result.canceled ? null : (result.filePaths[0] ?? null)
+})
+ipcMain.handle('export:cancel', () => running?.cancel())
+ipcMain.handle('export:start', async (_event, request: ExportRequest) => {
+  if (running) return
+  try {
+    await mkdir(request.folder, { recursive: true })
+    const output = freeExportPath(request.folder, request.name)
+    const { args, duration } = await buildExport(request.project, request.quality, output)
+    running = runFFmpeg(ffmpeg, args, output, duration, (fraction) => sendExport({ type: 'progress', fraction }))
+    running.done
+      .then(
+        () => sendExport({ type: 'done', path: output }),
+        (error: Error) => sendExport(error.name === 'AbortError' ? { type: 'cancelled' } : { type: 'error', message: error.message })
+      )
+      .finally(() => (running = null))
+  } catch (error) {
+    sendExport({ type: 'error', message: (error as Error).message })
+  }
 })
 
 app.whenReady().then(() => {

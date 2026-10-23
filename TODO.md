@@ -1,6 +1,6 @@
 # TODO
 
-On code lot par lot. Un lot est fini quand il compile, que l'app se lance, que tout est vérifié dans l'app et poussé sur GitHub.
+Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand il compile, que l'app se lance, que tout est vérifié dans l'app et poussé sur GitHub.
 
 ## Décisions d'UI et d'UX
 
@@ -46,11 +46,12 @@ On code lot par lot. Un lot est fini quand il compile, que l'app se lance, que t
 - [x] Bouton « Normaliser » : niveau sonore perçu de chaque piste incluse (blocs de 400 ms, portes à -70 dB et -10 dB, sur les parties utilisées), puis volumes réglés sur la médiane, plafonnés à 200 %. Les pistes silencieuses ne bougent pas. Une seule étape d'annulation.
 - [x] Les crans successifs d'un même réglage de volume ne font qu'une étape d'annulation.
 
-## Lot 4 : export
+## Lot 4 : export ✓
 
-- [ ] Panneau d'export qui glisse depuis le haut : nom, dossier, qualité (taille d'origine ou 1080p, H.264).
-- [ ] Export en arrière-plan avec le son mixé comme dans l'aperçu (volumes jusqu'à 200 %, coupures, fonds sonores), avec les filtres audio de FFmpeg. Barre de progression, annulation.
-- [ ] À la fin : afficher le fichier dans le Finder.
+- [x] Bouton « Exporter » dans la barre du haut (et ⌘E) : un panneau glisse depuis le haut, avec le nom du fichier, le dossier (par défaut `~/Movies/Easy Edit/Exports`) et la qualité (taille d'origine ou 1080p).
+- [x] Export en arrière-plan par FFmpeg : morceaux vidéo et trous noirs mis bout à bout à 60 i/s, chaque son placé à son instant avec le volume de sa piste (jusqu'à 200 %), pistes coupées exclues, fonds sonores compris. Encodage H.264 matériel (VideoToolbox), AAC 192 kb/s. Environ 3 fois plus vite que le temps réel.
+- [x] Barre de progression, annulation (aucun fichier à moitié écrit ne reste), message d'erreur lisible.
+- [x] À la fin : afficher le fichier dans le Finder. Un nom déjà pris devient « Nom 2.mp4 ».
 
 ## Plus tard
 
