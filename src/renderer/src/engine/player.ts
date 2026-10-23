@@ -137,7 +137,12 @@ class Player {
     gain.gain.setTargetAtTime(lane.muted ? 0 : lane.volume, this.context.currentTime, 0.015)
   }
 
-  private buffer(segment: Segment): Promise<AudioBuffer | null> {
+  /** Le son décodé d'une piste source, partagé entre la lecture et les formes d'onde. */
+  audioBuffer(source: string, stream: number): Promise<AudioBuffer | null> {
+    return this.buffer({ source, stream })
+  }
+
+  private buffer(segment: Pick<Segment, 'source' | 'stream'>): Promise<AudioBuffer | null> {
     const key = `${segment.source}|${segment.stream}`
     let pending = this.buffers.get(key)
     if (!pending) {

@@ -7,11 +7,15 @@ import '@fontsource/jetbrains-mono/500.css'
 import './styles.css'
 import { App } from './App'
 import { player } from './engine/player'
+import * as editing from './state/editing'
 import { useLibrary } from './state/library'
 import { useProject } from './state/project'
+import { useTimeline } from './state/timeline'
 
 // En développement, l'état est accessible depuis la console (et pour les tests pilotés par un agent).
-if (import.meta.env.DEV) Object.assign(window, { easyEdit: { player, useLibrary, useProject } })
+if (import.meta.env.DEV) Object.assign(window, {
+    easyEdit: { player, useLibrary, useProject, useTimeline, editing, pps: () => useTimeline.getState().pixelsPerSecond }
+  })
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

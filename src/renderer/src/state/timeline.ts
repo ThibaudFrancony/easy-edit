@@ -10,6 +10,13 @@ interface ScrollRequest {
   smooth: boolean
 }
 
+/** Morceaux en train d'être déplacés à la souris : ils sont affichés décalés de `delta` jusqu'au lâcher. */
+export interface DragState {
+  ids: Set<string>
+  delta: number
+  snapAt: number | null
+}
+
 interface TimelineState {
   /** Zoom : largeur d'une seconde, en px. */
   pixelsPerSecond: number
@@ -17,6 +24,10 @@ interface TimelineState {
   viewportWidth: number
   /** Demande de défilement, appliquée par la vue de la timeline. */
   scrollRequest: ScrollRequest | null
+  selection: Set<string>
+  drag: DragState | null
+  setSelection(selection: Set<string>): void
+  setDrag(drag: DragState | null): void
   setViewport(scrollLeft: number, viewportWidth: number): void
   /** Change le zoom en gardant `anchorTime` au même endroit à l'écran. */
   zoomTo(pixelsPerSecond: number, anchorTime: number): void
@@ -32,8 +43,13 @@ export const useTimeline = create<TimelineState>()((set, get) => ({
   scrollLeft: 0,
   viewportWidth: 1000,
   scrollRequest: null,
+  selection: new Set(),
+  drag: null,
+  setSelection: (selection) => set({ selection }),
+  setDrag: (drag) => set({ drag }),
   setViewport: (scrollLeft, viewportWidth) => set({ scrollLeft, viewportWidth }),
   zoomTo: (target, anchorTime) => {
+    instantLayout()
     const { pixelsPerSecond, scrollLeft } = get()
     const pps = clampZoom(target)
     const anchorOnScreen = LEADING_INSET + anchorTime * pixelsPerSecond - scrollLeft
@@ -41,6 +57,7 @@ export const useTimeline = create<TimelineState>()((set, get) => ({
     set({ pixelsPerSecond: pps, scrollLeft: left, scrollRequest: { left, smooth: false } })
   },
   zoomToFit: (duration) => {
+    instantLayout()
     const pps = clampZoom((get().viewportWidth - LEADING_INSET * 2) / Math.max(duration, 5))
     set({ pixelsPerSecond: pps, scrollLeft: 0, scrollRequest: { left: 0, smooth: false } })
   },
@@ -49,6 +66,20 @@ export const useTimeline = create<TimelineState>()((set, get) => ({
     set({ scrollRequest: { left: Math.max(0, left), smooth } })
   }
 }))
+
+let instantUntil = 0
+
+/**
+ * Les morceaux glissent en douceur quand ils changent de place (coupe, suppression, annulation)…
+ * sauf juste après un zoom ou un lâcher de souris, où ils doivent suivre sans retard : on le signale ici.
+ */
+export function instantLayout(): void {
+  instantUntil = performance.now() + 80
+}
+
+export function isInstantLayout(): boolean {
+  return performance.now() < instantUntil
+}
 
 export function timeToX(time: number, pixelsPerSecond: number): number {
   return LEADING_INSET + time * pixelsPerSecond

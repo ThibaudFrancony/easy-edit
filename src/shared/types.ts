@@ -71,7 +71,17 @@ export interface OpenedProject {
 }
 
 /** Actions envoyées par le menu de l'app à l'interface. */
-export type MenuAction = 'zoom-in' | 'zoom-out' | 'zoom-fit'
+export type MenuAction =
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'zoom-fit'
+  | 'undo'
+  | 'redo'
+  | 'select-all'
+  | 'split'
+  | 'delete'
+  | 'delete-close-gap'
+  | 'toggle-link'
 
 /** Ce que le preload expose à l'interface sous `window.api`. */
 export interface EasyEditAPI {

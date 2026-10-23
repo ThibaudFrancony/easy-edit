@@ -82,7 +82,28 @@ function buildMenu(): void {
           { role: 'close' }
         ]
       },
-      { role: 'editMenu' },
+      {
+        label: 'Édition',
+        submenu: [
+          { label: 'Annuler', accelerator: 'CmdOrCtrl+Z', click: menuAction('undo') },
+          { label: 'Rétablir', accelerator: 'Shift+CmdOrCtrl+Z', click: menuAction('redo') },
+          { type: 'separator' },
+          { role: 'cut', label: 'Couper le texte' },
+          { role: 'copy', label: 'Copier' },
+          { role: 'paste', label: 'Coller' },
+          { label: 'Tout sélectionner', accelerator: 'CmdOrCtrl+A', click: menuAction('select-all') }
+        ]
+      },
+      {
+        label: 'Montage',
+        submenu: [
+          { label: 'Couper au curseur', accelerator: 'S', click: menuAction('split') },
+          { label: 'Supprimer', accelerator: 'Backspace', click: menuAction('delete') },
+          { label: 'Supprimer et refermer le trou', accelerator: 'Shift+Backspace', click: menuAction('delete-close-gap') },
+          { type: 'separator' },
+          { label: 'Lier ou délier', accelerator: 'CmdOrCtrl+L', click: menuAction('toggle-link') }
+        ]
+      },
       {
         label: 'Présentation',
         submenu: [

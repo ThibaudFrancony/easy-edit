@@ -26,21 +26,21 @@ On code lot par lot. Un lot est fini quand il compile, que l'app se lance, que t
 - [x] Glisser un clip de la bibliothèque sur la timeline, avec aimantation (bords des morceaux, curseur, début) : ses morceaux liés se posent sur les bonnes pistes.
 - [x] Lecture : Espace, J/K/L, ← et → image par image (⇧ : 10 images), Début et Fin.
 
-## Lot 2 : montage
+## Lot 2 : montage ✓
 
-- [ ] Sélection : clic, ⇧clic, clic dans le vide pour tout désélectionner.
-- [ ] Déplacer les morceaux à la souris avec aimantation. Les morceaux liés suivent.
-- [ ] Couper avec S, selon les règles ci-dessus.
-- [ ] ⌫ (laisse un trou) et ⇧⌫ (referme le trou).
-- [ ] Lier et délier : ⌘L, clic droit, icône de chaîne.
-- [ ] Annuler et rétablir (⌘Z, ⇧⌘Z) pour toutes les actions de montage.
-- [ ] Animations : un morceau coupé s'écarte légèrement, une suppression se referme en douceur, un déplacement s'aimante avec un ressort.
+- [x] Sélection : clic (le morceau et ceux qui lui sont liés), ⇧clic pour ajouter ou retirer, clic dans le vide ou Échap pour tout désélectionner, ⌘A pour tout sélectionner.
+- [x] Déplacer les morceaux à la souris avec aimantation (bords des autres morceaux, curseur, début). Les morceaux liés suivent ; ce qu'ils recouvrent à l'arrivée est raccourci.
+- [x] Couper avec S, selon les règles ci-dessus. Les deux moitiés d'un groupe lié restent liées chacune de son côté.
+- [x] ⌫ (laisse un trou) et ⇧⌫ (referme le trou sur toutes les pistes, si le trou est libre partout).
+- [x] Lier et délier : ⌘L, clic droit, icône de chaîne sur la vidéo, chaîne barrée orange sur un son délié.
+- [x] Annuler et rétablir (⌘Z, ⇧⌘Z) pour toutes les actions de montage.
+- [x] Animations : les morceaux glissent en ressort vers leur nouvelle place (suppression, annulation), un morceau coupé apparaît en glissant légèrement, le déplacement à la souris suit sans retard.
+- [x] Formes d'onde dans les morceaux audio (calculées à partir du son déjà décodé pour la lecture, gardées en mémoire, sans recalcul au zoom).
 
 ## Lot 3 : son
 
 - [ ] Clic sur le nom d'une piste : ses réglages dans l'inspecteur (volume de 0 à 200 %, coupure, interrupteur « Normaliser »).
 - [ ] Le même mixage à l'export qu'à l'aperçu (volumes jusqu'à 200 %, coupures), avec les filtres audio de FFmpeg.
-- [ ] Formes d'onde dans les morceaux audio, calculées en arrière-plan et gardées en cache.
 - [ ] Fond sonore : glisser un fichier audio depuis le Finder, et bouton + sous les pistes. Renommer et supprimer une piste ajoutée.
 - [ ] Bouton « Normaliser » : mesure du niveau sonore perçu de chaque piste incluse (en arrière-plan, en cache), puis réglage des volumes sur un niveau commun, plafonné à 200 %.
 

@@ -82,8 +82,9 @@ src/
 scripts/package.sh construit, signe et installe l'app
 ```
 
-- Toute modification du montage passe par `useProject.getState().update(draft => …)` : enregistrement automatique (et annuler/rétablir au lot 2).
-- Les opérations sur un projet (`insertClip`, `clearRange`…) sont des fonctions pures dans `src/shared/project.ts`.
+- Toute modification du montage passe par `useProject.getState().update(draft => …)` : elle est annulable (⌘Z) et enregistrée automatiquement. Les actions de montage (couper, supprimer, lier…) sont dans `state/editing.ts` ; la sélection et le glissé en cours dans `state/timeline.ts`.
+- Les opérations sur un projet (`insertClip`, `splitAt`, `moveSegments`, `removeSegments`, `toggleLink`…) sont des fonctions pures dans `src/shared/project.ts`.
+- Les raccourcis de montage sont des entrées du menu Montage (processus principal) qui envoient une `MenuAction` à l'interface ; ceux de lecture (Espace, J/K/L, flèches) sont dans `useKeyboard.ts`.
 - Projets : `~/Movies/Easy Edit/Projets/*.easyedit` (JSON). Caches (vignettes, pistes audio extraites) : `~/Library/Application Support/Easy Edit/Media`.
 
 ## Compiler et lancer
@@ -98,7 +99,7 @@ npm run install-app  # construit, installe dans /Applications et lance
 
 Le processus principal (`src/main`) n'est pas rechargé à chaud : relancer `npm run dev` après l'avoir modifié. Il n'y a pas encore de tests automatiques.
 
-**Vérifier dans l'app (agents)** : `npm run dev -- --remoteDebuggingPort 9229`, puis piloter la page par le protocole DevTools (`http://127.0.0.1:9229/json/list`, `Runtime.evaluate`). En développement, `window.easyEdit` expose `player`, `useProject` et `useLibrary` ; `Input.dispatchDragEvent` simule un glisser-déposer. La fenêtre continue de se mettre à jour même cachée (`backgroundThrottling: false`).
+**Vérifier dans l'app (agents)** : `npm run dev -- --remoteDebuggingPort 9229`, puis piloter la page par le protocole DevTools (`http://127.0.0.1:9229/json/list`, `Runtime.evaluate`). En développement, `window.easyEdit` expose `player`, `useProject`, `useLibrary`, `useTimeline` et `editing` ; `Input.dispatchDragEvent` simule un glisser-déposer. La fenêtre continue de se mettre à jour même cachée (`backgroundThrottling: false`).
 
 ## Conventions
 
@@ -110,7 +111,7 @@ Le processus principal (`src/main`) n'est pas rechargé à chaud : relancer `npm
 
 ## Feuille de route
 
-Fait : lot 1 (projets, bibliothèque, aperçu et lecture de la timeline, glisser-déposer aimanté, zoom).
+Fait : lot 1 (projets, bibliothèque, aperçu et lecture de la timeline, glisser-déposer aimanté, zoom) et lot 2 (sélection, déplacement, coupe, suppression, liaison, annuler, formes d'onde).
 
 La suite, et les décisions d'UI et d'UX déjà prises, sont dans [TODO.md](TODO.md). On avance lot par lot et on coche au fur et à mesure.
 

@@ -1,20 +1,19 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Lane, Project, Segment } from '@shared/types'
+import type { Lane, Project } from '@shared/types'
 import { insertClip, projectDuration, segmentsIn, snapTimes } from '@shared/project'
 import { player } from '@/engine/player'
-import { clipDetails, thumbnailURL, useLibrary } from '@/state/library'
+import { clipDetails, useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { LEADING_INSET, MAX_ZOOM, MIN_ZOOM, timeToX, useTimeline, xToTime } from '@/state/timeline'
-import { clipTime, fileName } from '@/lib/format'
 import { fade, standard } from '@/lib/motion'
 import { CLIP_DRAG_TYPE } from '../Library'
 import { Icon } from '../Icon'
+import { ContextMenu, type MenuPosition } from './ContextMenu'
 import { Ruler } from './Ruler'
+import { SNAP_DISTANCE, SegmentView } from './SegmentView'
 import styles from './Timeline.module.css'
 
-/** Distance, en px à l'écran, sous laquelle un morceau s'aimante. */
-const SNAP_DISTANCE = 8
 const LANE_HEIGHT = { video: 66, audio: 40 } as const
 
 interface Ghost {
@@ -30,6 +29,9 @@ export function Timeline(): React.JSX.Element {
   const viewportWidth = useTimeline((s) => s.viewportWidth)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
+  const [menu, setMenu] = useState<MenuPosition | null>(null)
+  const dragSnap = useTimeline((s) => s.drag?.snapAt ?? null)
+  const snapAt = ghost?.snapAt ?? dragSnap
 
   const lanes = useMemo(() => [...project.lanes].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'video' ? -1 : 1)), [project.lanes])
   const duration = projectDuration(project)
@@ -106,7 +108,13 @@ export function Timeline(): React.JSX.Element {
               useProject.getState().update((draft) => insertClip(draft, details, position.start))
             }}
           >
-            <div className={styles.content} style={{ width: contentWidth }}>
+            <div
+              className={styles.content}
+              style={{ width: contentWidth }}
+              onPointerDown={(event) => {
+                if (event.button === 0) useTimeline.getState().setSelection(new Set())
+              }}
+            >
               <AnimatePresence initial={false}>
                 {lanes.map((lane) => (
                   <motion.div
@@ -119,7 +127,7 @@ export function Timeline(): React.JSX.Element {
                     exit={{ opacity: 0 }}
                     transition={standard}
                   >
-                    <LaneSegments project={project} lane={lane} pps={pps} />
+                    <LaneSegments project={project} lane={lane} pps={pps} onContextMenu={(x, y) => setMenu({ x, y })} />
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -136,15 +144,14 @@ export function Timeline(): React.JSX.Element {
                   />
                 )}
               </AnimatePresence>
-              {ghost?.snapAt !== null && ghost?.snapAt !== undefined && (
-                <div className={styles.snapLine} style={{ left: timeToX(ghost.snapAt, pps) }} />
-              )}
+              {snapAt !== null && <div className={styles.snapLine} style={{ left: timeToX(snapAt, pps) }} />}
             </div>
           </div>
         </div>
 
         <Playhead />
       </div>
+      <ContextMenu position={menu} onClose={() => setMenu(null)} />
     </section>
   )
 }
@@ -160,53 +167,13 @@ function snap(start: number, duration: number, times: number[], threshold: numbe
   return { start: Math.max(0, start + (best?.delta ?? 0)), duration, snapAt: best?.at ?? null }
 }
 
-function LaneSegments({ project, lane, pps }: { project: Project; lane: Lane; pps: number }): React.JSX.Element {
-  const segments = segmentsIn(project, lane.id)
+function LaneSegments({ project, lane, pps, onContextMenu }: { project: Project; lane: Lane; pps: number; onContextMenu(x: number, y: number): void }): React.JSX.Element {
   return (
     <AnimatePresence initial={false}>
-      {segments.map((segment) => (
-        <motion.div
-          key={segment.id}
-          className={`${styles.segment} ${lane.kind === 'video' ? styles.video : styles.audio}`}
-          style={{ left: timeToX(segment.start, pps) + 1, width: Math.max(2, segment.duration * pps - 2) }}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.97 }}
-          transition={standard}
-        >
-          {lane.kind === 'video' ? <VideoSegment segment={segment} /> : null}
-        </motion.div>
+      {segmentsIn(project, lane.id).map((segment) => (
+        <SegmentView key={segment.id} segment={segment} kind={lane.kind} pps={pps} onContextMenu={onContextMenu} />
       ))}
     </AnimatePresence>
-  )
-}
-
-function VideoSegment({ segment }: { segment: Segment }): React.JSX.Element {
-  const created = useLibrary((s) => s.clips.find((c) => c.path === segment.source)?.createdAt)
-  const [thumbnail, setThumbnail] = useState<string | null>(null)
-
-  useEffect(() => {
-    let alive = true
-    thumbnailURL(segment.source).then((url) => alive && setThumbnail(url), () => {})
-    return () => {
-      alive = false
-    }
-  }, [segment.source])
-
-  return (
-    <>
-      <div className={styles.label}>
-        {segment.linkId && <Icon name="link" size={11} />}
-        {created ? clipTime(created) : fileName(segment.source)}
-      </div>
-      <motion.div
-        className={styles.filmstrip}
-        style={{ backgroundImage: thumbnail ? `url("${thumbnail}")` : undefined }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: thumbnail ? 1 : 0 }}
-        transition={fade}
-      />
-    </>
   )
 }
 

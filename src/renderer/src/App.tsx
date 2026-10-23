@@ -1,6 +1,8 @@
 import { useEffect } from 'react'
+import type { MenuAction } from '@shared/types'
 import { projectDuration } from '@shared/project'
 import { player } from '@/engine/player'
+import { deleteSelection, pruneSelection, selectAll, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
 import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
@@ -46,16 +48,29 @@ function useAppEvents(): void {
     // Le moteur de lecture suit le projet ouvert.
     player.setProject(useProject.getState().project)
     const unsubscribe = useProject.subscribe((state, previous) => {
-      if (state.project !== previous.project) player.setProject(state.project)
+      if (state.project !== previous.project) {
+        player.setProject(state.project)
+        pruneSelection()
+      }
       if (state.path !== previous.path) player.seek(0)
     })
 
     const offProject = window.api.onProjectOpened((opened) => useProject.getState().load(opened))
     const offMenu = window.api.onMenu((action) => {
       const { pixelsPerSecond, zoomTo, zoomToFit } = useTimeline.getState()
-      if (action === 'zoom-in') zoomTo(pixelsPerSecond * 1.5, player.time())
-      if (action === 'zoom-out') zoomTo(pixelsPerSecond / 1.5, player.time())
-      if (action === 'zoom-fit') zoomToFit(projectDuration(useProject.getState().project))
+      const actions: Record<MenuAction, () => void> = {
+        'zoom-in': () => zoomTo(pixelsPerSecond * 1.5, player.time()),
+        'zoom-out': () => zoomTo(pixelsPerSecond / 1.5, player.time()),
+        'zoom-fit': () => zoomToFit(projectDuration(useProject.getState().project)),
+        undo: () => useProject.getState().undo(),
+        redo: () => useProject.getState().redo(),
+        'select-all': selectAll,
+        split: splitAtPlayhead,
+        delete: () => deleteSelection(false),
+        'delete-close-gap': () => deleteSelection(true),
+        'toggle-link': toggleLinkSelection
+      }
+      actions[action]()
     })
 
     return () => {
