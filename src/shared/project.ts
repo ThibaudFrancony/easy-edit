@@ -1,4 +1,5 @@
-import type { ClipDetails, Lane, Project, Segment } from './types'
+import type { CaptionLook, ClipDetails, Lane, Project, Segment } from './types'
+import type { CaptionDraft } from './captions'
 
 // Opérations pures sur un projet : utilisables partout, faciles à tester, et compatibles avec Immer
 // (elles modifient le brouillon reçu).
@@ -158,7 +159,14 @@ export function splitAt(project: Project, ids: Iterable<string>, time: number): 
       duration: end - time,
       linkId
     }
-    result.push({ ...segment, duration: time - segment.start }, right)
+    const left = { ...segment, duration: time - segment.start }
+    if (segment.caption) {
+      // Un sous-titre coupé garde ses mots de chaque côté, recalés sur le début de chaque moitié.
+      const at = time - segment.start
+      left.caption = { words: segment.caption.words.filter((w) => w.start < at) }
+      right.caption = { words: segment.caption.words.filter((w) => w.start >= at).map((w) => ({ ...w, start: w.start - at, end: w.end - at })) }
+    }
+    result.push(left, right)
     created.push(right.id)
   }
   project.segments = result
@@ -255,15 +263,62 @@ export function trimSegment(project: Project, id: string, edge: 'start' | 'end',
   const segment = project.segments.find((s) => s.id === id)
   if (!segment) return
   const end = segment.start + segment.duration
+  // Une image ou un sous-titre n'ont pas de source à respecter : leur durée est libre.
+  const free = segment.image || segment.caption
   if (edge === 'end') {
-    const room = segment.image ? Infinity : sourceDuration - segment.sourceStart
+    const room = free ? Infinity : sourceDuration - segment.sourceStart
     segment.duration = Math.min(room, Math.max(MIN_SEGMENT, segment.duration + delta))
   } else {
-    const earliest = segment.image ? 0 : Math.max(0, segment.start - segment.sourceStart)
+    const earliest = free ? 0 : Math.max(0, segment.start - segment.sourceStart)
     const start = Math.min(end - MIN_SEGMENT, Math.max(earliest, segment.start + delta))
-    if (!segment.image) segment.sourceStart += start - segment.start
+    const shift = start - segment.start
+    if (!free) segment.sourceStart += shift
+    if (segment.caption) {
+      // Les mots gardent leur instant sur la timeline : ceux qui tombent avant le nouveau début disparaissent.
+      segment.caption.words = segment.caption.words.filter((w) => w.end > shift).map((w) => ({ ...w, start: Math.max(0, w.start - shift), end: w.end - shift }))
+    }
     segment.start = start
     segment.duration = end - start
   }
   clearRange(project, segment.laneId, segment.start, segment.start + segment.duration, new Set([id]))
+}
+
+/** Piste de sous-titres d'une piste audio (« Sous-titres · Micro »), créée tout en haut si besoin. */
+export function captionLane(project: Project, name: string, look: CaptionLook): string {
+  const existing = project.lanes.find((l) => l.kind === 'caption' && l.name === name)
+  if (existing) return existing.id
+  const lane: Lane = { id: newID(), kind: 'caption', name, volume: 1, muted: false, normalized: false, look }
+  project.lanes.unshift(lane)
+  return lane.id
+}
+
+/** Remplace les sous-titres d'une piste sur la durée couverte par les nouveaux. */
+export function placeCaptions(project: Project, laneId: string, drafts: CaptionDraft[]): void {
+  for (const draft of drafts) clearRange(project, laneId, draft.start, draft.end)
+  for (const draft of drafts) {
+    project.segments.push({
+      id: newID(), laneId, source: '', stream: -1, sourceStart: 0, start: draft.start, duration: Math.max(MIN_SEGMENT, draft.end - draft.start),
+      linkId: null, caption: { words: draft.words }
+    })
+  }
+}
+
+/** Le texte d'un sous-titre, tel qu'on l'écrit et le modifie. */
+export function captionText(segment: Segment): string {
+  return segment.caption?.words.map((w) => w.text).join(' ') ?? ''
+}
+
+/**
+ * Change le texte d'un sous-titre. Si le nombre de mots ne change pas, chaque mot garde ses temps ; sinon les mots
+ * se répartissent régulièrement sur la durée du sous-titre.
+ */
+export function setCaptionText(project: Project, id: string, text: string): void {
+  const segment = project.segments.find((s) => s.id === id)
+  if (!segment?.caption) return
+  const words = text.trim().split(/\s+/).filter(Boolean)
+  const old = segment.caption.words
+  segment.caption.words =
+    words.length === old.length
+      ? old.map((w, i) => ({ ...w, text: words[i]! }))
+      : words.map((word, i) => ({ text: word, start: (i * segment.duration) / words.length, end: ((i + 1) * segment.duration) / words.length }))
 }

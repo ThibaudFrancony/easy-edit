@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Lane } from '@shared/types'
-import { deleteLane, renameLane, setLaneVolume, toggleLaneMute, toggleLaneNormalized } from '@/state/editing'
+import type { CaptionWord, Lane } from '@shared/types'
+import { CAPTION_ACCENTS, CAPTION_STYLES, DEFAULT_LOOK } from '@shared/captions'
+import { CaptionText } from './Captions'
+import { deleteLane, renameLane, setLaneLook, setLaneVolume, toggleLaneMute, toggleLaneNormalized } from '@/state/editing'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { quick, standard } from '@/lib/motion'
@@ -48,19 +50,22 @@ function LaneSettings({ lane }: { lane: Lane }): React.JSX.Element {
   // On garde toujours au moins une piste vidéo.
   const videoLaneCount = useProject((s) => s.project.lanes.filter((l) => l.kind === 'video').length)
   const video = lane.kind === 'video'
-  const editable = lane.music || video
+  const caption = lane.kind === 'caption'
+  const editable = lane.music || video || caption
 
   return (
     <>
       <div className={styles.header}>
-        <span className={styles.dot} data-kind={video ? 'video' : lane.music ? 'music' : 'audio'} />
+        <span className={styles.dot} data-kind={caption ? 'caption' : video ? 'video' : lane.music ? 'music' : 'audio'} />
         {editable ? <LaneName lane={lane} /> : <span className={styles.name}>{lane.name}</span>}
         <button className="icon-button" aria-label="Fermer" onClick={() => useTimeline.getState().inspect(null)}>
           <Icon name="close" size={14} />
         </button>
       </div>
 
-      {video ? (
+      {caption ? (
+        <CaptionSettings lane={lane} />
+      ) : video ? (
         videoLaneCount > 1 && (
           <button className={styles.delete} onClick={() => deleteLane(lane.id)}>
             <Icon name="trash" size={14} />
@@ -70,6 +75,64 @@ function LaneSettings({ lane }: { lane: Lane }): React.JSX.Element {
       ) : (
         <AudioSettings lane={lane} percent={percent} />
       )}
+    </>
+  )
+}
+
+const SAMPLE: CaptionWord[] = [
+  { text: 'Salut', start: 0, end: 0.4 },
+  { text: 'tout', start: 0.4, end: 0.8 },
+  { text: 'le', start: 0.8, end: 1 },
+  { text: 'monde', start: 1, end: 1.5 }
+]
+
+/** Style des sous-titres (vignettes) et couleur du mot prononcé. */
+function CaptionSettings({ lane }: { lane: Lane }): React.JSX.Element {
+  const look = lane.look ?? DEFAULT_LOOK
+  return (
+    <>
+      <div className={styles.styles} role="radiogroup" aria-label="Style des sous-titres">
+        {CAPTION_STYLES.map((style) => (
+          <button
+            key={style.id}
+            role="radio"
+            aria-checked={look.style === style.id}
+            className={styles.styleCard}
+            onClick={() => setLaneLook(lane.id, { ...look, style: style.id })}
+          >
+            <span className={styles.stylePreview}>
+              <CaptionText look={{ ...look, style: style.id }} words={SAMPLE} time={0.5} zoom={2.6} />
+            </span>
+            <span className={styles.styleName}>{style.name}</span>
+          </button>
+        ))}
+      </div>
+      <div className={styles.accents} role="radiogroup" aria-label="Couleur d'accent">
+        <button
+          role="radio"
+          aria-checked={look.accent === null}
+          aria-label="Sans accent"
+          title="Sans accent"
+          className={styles.swatch}
+          data-none
+          onClick={() => setLaneLook(lane.id, { ...look, accent: null })}
+        />
+        {CAPTION_ACCENTS.map((color) => (
+          <button
+            key={color}
+            role="radio"
+            aria-checked={look.accent === color}
+            aria-label={color}
+            className={styles.swatch}
+            style={{ background: color }}
+            onClick={() => setLaneLook(lane.id, { ...look, accent: color })}
+          />
+        ))}
+      </div>
+      <button className={styles.delete} onClick={() => deleteLane(lane.id)}>
+        <Icon name="trash" size={14} />
+        Supprimer la piste
+      </button>
     </>
   )
 }

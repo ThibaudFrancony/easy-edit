@@ -68,6 +68,15 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - [x] Clic sur l'aperçu : sélectionne ce qui est visible sous le pointeur (contour orange) ; glisser le déplace directement.
 - [x] Chaque geste est une étape d'annulation. L'export applique la même taille, la même position et le même rognage que l'aperçu.
 
+## Lot 7 : sous-titres automatiques ✓
+
+- [x] Transcription sur le Mac, sans internet après le premier téléchargement du modèle (environ 400 Mo, en cache dans `~/Library/Caches/desert-ant-models`), par Voz (Desert Ant Labs, Parakeet TDT 0.6B v3) avec onnxruntime-node, dans un processus à part (`src/main/transcriber.ts`). Environ 10 s pour un clip de 30 s.
+- [x] Bouton « Transcrire » à côté de « Normaliser » : un clic ouvre « Quelle piste transcrire ? » (le micro coché d'office) ; on peut aussi glisser le bouton sur une piste audio.
+- [x] Une piste « Sous-titres · <piste> » tout en haut de la timeline : un morceau par phrase courte (coupée à la ponctuation, aux pauses, ou au-delà de 7 mots), chaque mot avec ses temps.
+- [x] Double-clic sur un sous-titre pour corriger son texte ; on le coupe, déplace, rogne et supprime comme les autres morceaux.
+- [x] Quatre styles dans la direction Studio (Classique, Bandeau, Impact, Mot à mot) et une couleur d'accent pour le mot prononcé (ou sans accent), choisis par piste dans l'inspecteur.
+- [x] Les sous-titres sont incrustés à l'export, dans le même style (libass, police Inter fournie avec l'app).
+
 ## Plus tard
 
 - Réordonner les pistes en les glissant.

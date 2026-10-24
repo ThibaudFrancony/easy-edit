@@ -248,6 +248,41 @@
   background: var(--music);
 }
 
+.caption {
+  background: var(--caption);
+}
+
+.captionText,
+.captionInput {
+  position: absolute;
+  inset: 0;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: var(--caption-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.captionText {
+  display: block;
+  line-height: 32px;
+}
+
+.captionInput {
+  border: 0;
+  outline: none;
+  background: var(--lane);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-radius: inherit;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  z-index: 4;
+}
+
 .segment[data-muted='true'] {
   opacity: 0.4;
 }
@@ -403,4 +438,11 @@
 
 .segment:hover .trimHandle::after {
   opacity: 0.7;
+}
+
+/* Piste audio survolée par le bouton « Transcrire » : elle s'éclaire pour dire qu'on peut lâcher. */
+.lane[data-transcribe='true'],
+.head[data-transcribe='true'] {
+  background: var(--selected);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }

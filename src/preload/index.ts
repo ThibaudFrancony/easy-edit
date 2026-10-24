@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { EasyEditAPI, ExportEvent, MenuAction, OpenedProject } from '@shared/types'
+import type { EasyEditAPI, ExportEvent, MenuAction, OpenedProject, TranscribePhase } from '@shared/types'
 import { toMediaURL } from '@shared/media-url'
 
 function listen<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -29,7 +29,9 @@ const api: EasyEditAPI = {
   pickFolder: (current) => ipcRenderer.invoke('export:pick-folder', current),
   startExport: (request) => ipcRenderer.invoke('export:start', request),
   cancelExport: () => ipcRenderer.invoke('export:cancel'),
-  onExport: (callback) => listen<ExportEvent>('export', callback)
+  onExport: (callback) => listen<ExportEvent>('export', callback),
+  transcribe: (samples) => ipcRenderer.invoke('transcribe', samples),
+  onTranscribeProgress: (callback) => listen<{ phase: TranscribePhase; fraction: number | null }>('transcribe-progress', callback)
 }
 
 contextBridge.exposeInMainWorld('api', api)

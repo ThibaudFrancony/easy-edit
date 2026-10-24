@@ -1,0 +1,148 @@
+.anchor {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.button {
+  position: relative;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid #262a32;
+  color: #c5c9d1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  cursor: grab;
+  transition: background 0.2s, color 0.2s;
+}
+
+.button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.button:active {
+  cursor: grabbing;
+}
+
+.button:disabled {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.button :global(.mono) {
+  font-size: 11px;
+}
+
+/* Fine barre d'avancement en bas du bouton pendant la transcription. */
+.progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--accent);
+  transform-origin: left;
+}
+
+.error {
+  font-size: 12px;
+  color: #ff8a5c;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel {
+  position: absolute;
+  z-index: 30;
+  top: 34px;
+  left: 0;
+  width: 240px;
+  padding: 12px;
+  border-radius: 8px;
+  background: #16181d;
+  border: 1px solid var(--control-strong);
+  box-shadow: 0 12px 32px #00000080;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transform-origin: top left;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.option {
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.option:hover {
+  background: var(--selected);
+  color: var(--text);
+}
+
+.option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.check {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid var(--control-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.option input:checked + .check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.option input:focus-visible + .check {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.primary {
+  margin-top: 8px;
+  height: 32px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  transition: filter 0.2s, opacity 0.2s;
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

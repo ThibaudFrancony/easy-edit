@@ -38,7 +38,7 @@ Une seule fenêtre, sombre :
 - **À gauche, la bibliothèque « Fichiers »** : les clips vidéo (vignette, durée) et les sons importés (forme d'onde, durée). Le + de l'en-tête importe un son ; on peut aussi y glisser des sons depuis le Finder. Les sons importés sont copiés dans `~/Movies/Easy Edit/Sons`.
 - **Au centre, l'aperçu** : le lecteur et les commandes de lecture.
 - **À droite, l'inspecteur** (lot 3) : les réglages de la piste sélectionnée, qui glissent depuis la droite.
-- **En bas, la timeline** : les pistes vidéo (la plus haute passe par-dessus les autres dans l'image), puis les pistes audio. L'ordre de `project.lanes` est l'ordre d'affichage.
+- **En bas, la timeline** : les pistes de sous-titres tout en haut, puis les pistes vidéo (la plus haute passe par-dessus les autres dans l'image), puis les pistes audio. L'ordre de `project.lanes` est l'ordre d'affichage.
 - **L'export** se fait dans un panneau qui glisse depuis le haut de la fenêtre (bouton « Exporter » de la barre du haut, ⌘E), pas dans une nouvelle fenêtre.
 - Raccourcis comme dans les logiciels pros : Espace (lecture), J/K/L, ← → (image par image).
 
@@ -87,6 +87,7 @@ scripts/icon.mjs   génère l'icône à partir du SVG
 ```
 
 - Toute modification du montage passe par `useProject.getState().update(draft => …)` : elle est annulable (⌘Z) et enregistrée automatiquement. Les actions de montage (couper, supprimer, lier…) sont dans `state/editing.ts` ; la sélection et le glissé en cours dans `state/timeline.ts`.
+- Sous-titres : une piste `kind: 'caption'` (avec `look` : style et accent) et des morceaux `caption.words` (temps relatifs au morceau). Styles et découpage dans `src/shared/captions.ts`, partagés par l'aperçu (`components/Captions.tsx`, CSS) et l'export (`src/main/captions-ass.ts`, libass). Transcription : `engine/transcribe.ts` (Voz) et `state/transcription.ts`.
 - Le cadrage d'un morceau (`transform`, `crop`) se calcule dans `src/shared/geometry.ts` (`placement`), en fractions de l'image : la même fonction sert à l'aperçu (en %) et à l'export (en pixels). L'édition sur l'aperçu est dans `state/canvas.ts` et `components/FrameEditor.tsx`.
 - Les opérations sur un projet (`insertClip`, `splitAt`, `moveSegments`, `removeSegments`, `toggleLink`…) sont des fonctions pures dans `src/shared/project.ts`.
 - Tous les raccourcis sont gérés dans `useKeyboard.ts`. Ceux du menu y sont affichés avec `registerAccelerator: false`, pour que S, ⌫ ou ⌘Z gardent leur rôle normal dans un champ de texte ; cliquer l'entrée de menu envoie une `MenuAction`.
@@ -126,7 +127,8 @@ Fait :
 - lot 3 : inspecteur de piste, volume jusqu'à 200 %, fonds sonores, normalisation ;
 - lot 4 : export .mp4 ;
 - lot 5 : plusieurs pistes vidéo superposées, images à durée réglable ;
-- lot 6 : bibliothèque par catégories, cadrage (redimensionner, rogner, déplacer sur l'aperçu).
+- lot 6 : bibliothèque par catégories, cadrage (redimensionner, rogner, déplacer sur l'aperçu) ;
+- lot 7 : sous-titres automatiques (Voz), quatre styles, incrustés à l'export.
 
 La suite, et les décisions d'UI et d'UX déjà prises, sont dans [TODO.md](TODO.md). On avance lot par lot et on coche au fur et à mesure.
 

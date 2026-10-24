@@ -1,10 +1,14 @@
+import { randomUUID } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { writeFile, rm } from 'node:fs/promises'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { app } from 'electron'
 import type { ExportQuality, Project } from '@shared/types'
 import { projectDuration, segmentsIn, videoLanes } from '@shared/project'
 import { NO_CROP, placement } from '@shared/geometry'
 import { audioTrackFile, clipDetails } from './media'
+import { buildCaptionsASS } from './captions-ass'
 
 // Construit la commande FFmpeg qui calcule le montage final : l'image (pistes vidéo superposées, la plus haute
 // par-dessus, morceaux de clips et images fixes) et le son (chaque morceau placé à son instant, au volume de sa piste,
@@ -29,7 +33,16 @@ const seconds = (value: number): string => value.toFixed(6)
 export interface ExportCommand {
   args: string[]
   duration: number
+  /** Supprime le fichier de sous-titres temporaire, s'il y en a un. */
+  cleanup?: () => Promise<void>
 }
+
+// Dossier des polices embarquées : à côté de l'app une fois packagée, dans le projet en développement.
+const fontsFolder = (): string =>
+  app.isPackaged ? join(process.resourcesPath, 'fonts') : join(app.getAppPath(), 'resources', 'fonts')
+
+/** Échappe une valeur d'option de filtre FFmpeg (les `:` et `,` séparent les options). */
+const filterValue = (value: string): string => value.replace(/[\\:'[\],;]/g, (char) => `\\${char}`)
 
 export async function buildExport(project: Project, quality: ExportQuality, output: string): Promise<ExportCommand> {
   const duration = projectDuration(project)
@@ -92,7 +105,14 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
       base = next
     }
   }
-  graph.push(`[${base}]format=yuv420p[vout]`)
+  // Sous-titres : libass les dessine par-dessus l'image finale.
+  const captions = buildCaptionsASS(project, width, height)
+  const captionsPath = captions === null ? null : join(tmpdir(), `easy-edit-captions-${randomUUID()}.ass`)
+  if (captionsPath) {
+    graph.push(`[${base}]format=yuv420p,ass=filename=${filterValue(captionsPath)}:fontsdir=${filterValue(fontsFolder())}[vout]`)
+  } else {
+    graph.push(`[${base}]format=yuv420p[vout]`)
+  }
 
   // ——— Son ———
   const sounds: string[] = []
@@ -119,8 +139,10 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
 
   // Débit vidéo proportionnel au nombre de pixels : environ 15 Mb/s en 1080p60.
   const bitrate = Math.max(8, Math.round((width * height * FPS * 0.12) / 1e6))
+  if (captions !== null && captionsPath) await writeFile(captionsPath, captions, 'utf8')
   return {
     duration,
+    cleanup: captionsPath ? () => rm(captionsPath, { force: true }) : undefined,
     args: [
       ...inputs,
       '-filter_complex', graph.join(';'),

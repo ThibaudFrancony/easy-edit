@@ -1,4 +1,4 @@
-import type { ClipDetails, Lane } from '@shared/types'
+import type { CaptionLook, ClipDetails, Lane } from '@shared/types'
 import {
   addMusicLane, addVideoLane, insertAudioFile, insertClip, insertImage, moveSegments, removeLane, removeSegments, splitAt, toggleLink, trimSegment
 } from '@shared/project'
@@ -79,6 +79,11 @@ export function toggleLaneMute(laneId: string): void {
 
 export function toggleLaneNormalized(laneId: string): void {
   updateLane(laneId, (lane) => (lane.normalized = !lane.normalized))
+}
+
+/** Style et couleur d'accent des sous-titres d'une piste. */
+export function setLaneLook(laneId: string, look: CaptionLook): void {
+  updateLane(laneId, (lane) => (lane.look = look))
 }
 
 export function renameLane(laneId: string, name: string): void {

@@ -1,0 +1,37 @@
+/* Conteneur de référence : les tailles des sous-titres sont en cqh, donc proportionnelles à la hauteur de l'image. */
+.layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  container-type: size;
+  pointer-events: none;
+}
+
+.caption {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  translate: 0 -50%;
+  text-align: center;
+  color: #fff;
+  line-height: 1.18;
+  letter-spacing: -0.01em;
+}
+
+.line {
+  /* Le contour est peint sous le remplissage, comme libass à l'export. */
+  paint-order: stroke fill;
+  -webkit-text-stroke: var(--outline) #000000b3;
+}
+
+.caption[data-style='bandeau'] .line {
+  padding: 0.15em 0.4em;
+  background: #0b0c0fc7;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.caption[data-style='impact'] {
+  text-transform: uppercase;
+  letter-spacing: 0;
+}

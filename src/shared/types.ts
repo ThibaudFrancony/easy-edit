@@ -35,7 +35,7 @@ export interface ClipDetails {
   audioTracks: AudioTrackInfo[]
 }
 
-export type LaneKind = 'video' | 'audio'
+export type LaneKind = 'video' | 'audio' | 'caption'
 
 export interface Lane {
   id: string
@@ -48,6 +48,21 @@ export interface Lane {
   normalized: boolean
   /** Piste de fond sonore ajoutée à la main (renommable, supprimable). Absente des anciens projets. */
   music?: boolean
+  /** Piste de sous-titres : leur style et leur couleur d'accent. */
+  look?: CaptionLook
+}
+
+/** Style des sous-titres d'une piste (voir `CAPTION_STYLES`) et couleur du mot prononcé (`null` : sans accent). */
+export interface CaptionLook {
+  style: 'classique' | 'bandeau' | 'impact' | 'mot'
+  accent: string | null
+}
+
+/** Un mot d'un sous-titre, en secondes depuis le début du sous-titre. */
+export interface CaptionWord {
+  text: string
+  start: number
+  end: number
 }
 
 /** Un morceau posé sur une piste : une plage d'un flux d'un fichier source, placée à un instant de la timeline. */
@@ -69,6 +84,8 @@ export interface Segment {
   transform?: Transform
   /** Rognage, en fractions du média de chaque côté. Absent : rien n'est rogné. */
   crop?: Crop
+  /** Sous-titre (sur une piste de sous-titres) : ses mots, avec leurs temps. `source` est alors vide. */
+  caption?: { words: CaptionWord[] }
 }
 
 /** `x`, `y` : décalage du centre en fractions de l'image ; `scale` : 1 = ajusté dans l'image sans déformation. */
@@ -119,6 +136,9 @@ export type ExportEvent =
   | { type: 'error'; message: string }
   | { type: 'cancelled' }
 
+/** Étape d'une transcription : téléchargement du modèle (la première fois), chargement, transcription. */
+export type TranscribePhase = 'download' | 'load' | 'transcribe'
+
 /** Actions envoyées par le menu de l'app à l'interface. */
 export type MenuAction =
   | 'zoom-in'
@@ -167,4 +187,7 @@ export interface EasyEditAPI {
   startExport(request: ExportRequest): Promise<void>
   cancelExport(): Promise<void>
   onExport(callback: (event: ExportEvent) => void): () => void
+  /** Transcrit un son mono à 16 kHz (Voz, sur le Mac) ; mots en secondes depuis son début. */
+  transcribe(samples: Float32Array): Promise<{ text: string; start: number; end: number }[]>
+  onTranscribeProgress(callback: (progress: { phase: TranscribePhase; fraction: number | null }) => void): () => void
 }

@@ -9,13 +9,17 @@ import { LEADING_INSET, MAX_ZOOM, MIN_ZOOM, timeToX, useTimeline, xToTime } from
 import { fade, quick, standard } from '@/lib/motion'
 import { addEmptyLane, normalizeLanes, placeFiles } from '@/state/editing'
 import { useCanvas } from '@/state/canvas'
+import { TRANSCRIBE_DRAG_TYPE, transcribeLanes } from '@/state/transcription'
+import { TranscribeButton } from './TranscribeButton'
 import { CLIP_DRAG_TYPE, droppedMediaPaths } from '../Library'
 import { Icon } from '../Icon'
 import { Ruler } from './Ruler'
 import { SNAP_DISTANCE, SegmentView } from './SegmentView'
 import styles from './Timeline.module.css'
 
-const LANE_HEIGHT = { video: 66, audio: 40 } as const
+const LANE_HEIGHT = { caption: 40, video: 66, audio: 40 } as const
+/** Ordre des familles de pistes, de haut en bas : sous-titres, vidéo, audio. */
+const KIND_ORDER = { caption: 0, video: 1, audio: 2 } as const
 
 interface Ghost {
   start: number
@@ -34,11 +38,30 @@ export function Timeline(): React.JSX.Element {
   /** Fichiers audio glissés depuis le Finder : l'instant où ils seront posés. */
   const [fileDrop, setFileDrop] = useState<number | null>(null)
   const inspected = useTimeline((s) => s.inspectedLane)
+  /** Piste audio survolée par le bouton « Transcrire » qu'on fait glisser. */
+  const [transcribeTarget, setTranscribeTarget] = useState<string | null>(null)
+  const transcribeDrop = (laneId: string, kind: Lane['kind']) => ({
+    onDragOver: (event: React.DragEvent) => {
+      if (kind !== 'audio' || !event.dataTransfer.types.includes(TRANSCRIBE_DRAG_TYPE)) return
+      event.preventDefault()
+      event.stopPropagation()
+      event.dataTransfer.dropEffect = 'copy'
+      setTranscribeTarget(laneId)
+    },
+    onDragLeave: () => setTranscribeTarget((current) => (current === laneId ? null : current)),
+    onDrop: (event: React.DragEvent) => {
+      if (!event.dataTransfer.types.includes(TRANSCRIBE_DRAG_TYPE)) return
+      event.preventDefault()
+      event.stopPropagation()
+      setTranscribeTarget(null)
+      if (kind === 'audio') void transcribeLanes([laneId])
+    }
+  })
   const hasAudio = project.lanes.some((l) => l.kind === 'audio')
   const dragSnap = useTimeline((s) => s.drag?.snapAt ?? s.trim?.snapAt ?? null)
   const snapAt = ghost?.snapAt ?? dragSnap
 
-  const lanes = useMemo(() => [...project.lanes].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'video' ? -1 : 1)), [project.lanes])
+  const lanes = useMemo(() => [...project.lanes].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind]), [project.lanes])
   const duration = projectDuration(project)
   // 30 s de marge après le dernier morceau, pour pouvoir y déposer la suite.
   const contentWidth = Math.max(LEADING_INSET * 2 + (duration + 30) * pps, viewportWidth)
@@ -66,6 +89,7 @@ export function Timeline(): React.JSX.Element {
     <section className={styles.timeline}>
       <div className={styles.toolbar}>
         <NormalizeButton disabled={!hasAudio} />
+        <TranscribeButton />
         <div className={styles.grow} />
         <ZoomControl />
       </div>
@@ -88,6 +112,8 @@ export function Timeline(): React.JSX.Element {
                   className={styles.head}
                   data-kind={lane.kind}
                   data-inspected={inspected === lane.id}
+                  data-transcribe={transcribeTarget === lane.id}
+                  {...transcribeDrop(lane.id, lane.kind)}
                   style={{ height: LANE_HEIGHT[lane.kind] }}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -173,6 +199,8 @@ export function Timeline(): React.JSX.Element {
                     layout
                     className={styles.lane}
                     data-lane-id={lane.id}
+                    data-transcribe={transcribeTarget === lane.id}
+                    {...transcribeDrop(lane.id, lane.kind)}
                     style={{ height: LANE_HEIGHT[lane.kind] }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

@@ -4,6 +4,7 @@ import type { Segment, Transform } from '@shared/types'
 import { segmentsIn, videoLanes } from '@shared/project'
 import { NO_CROP, NO_TRANSFORM, contains, placement } from '@shared/geometry'
 import { beginFrameGesture, onPreview, setTransform, useCanvas } from '@/state/canvas'
+import { CaptionLayer } from './Captions'
 import { FrameEditor, FrameToolbar, SelectionOutline } from './FrameEditor'
 import { FRAME, player, usePlayback } from '@/engine/player'
 import { useLibrary } from '@/state/library'
@@ -40,6 +41,7 @@ export function Preview(): React.JSX.Element {
           }}
         >
           <VideoLayers />
+          <CaptionLayer />
           <SelectionOutline />
           <FrameEditor />
           <AnimatePresence>

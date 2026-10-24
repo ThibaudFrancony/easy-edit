@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { Lane, Segment } from '@shared/types'
-import { MIN_SEGMENT, snapTimes, withLinked } from '@shared/project'
+import { MIN_SEGMENT, captionText, setCaptionText, snapTimes, withLinked } from '@shared/project'
 import { player } from '@/engine/player'
 import { commitDrag, commitTrim } from '@/state/editing'
 import { thumbnailURL, useLibrary } from '@/state/library'
@@ -38,7 +38,7 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
 
   return (
     <motion.div
-      className={`${styles.segment} ${kind === 'video' ? styles.video : lane.music ? styles.music : styles.audio}`}
+      className={`${styles.segment} ${kind === 'caption' ? styles.caption : kind === 'video' ? styles.video : lane.music ? styles.music : styles.audio}`}
       data-muted={lane.muted}
       data-selected={selected}
       data-dragging={dragging || trim !== null}
@@ -57,7 +57,13 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
         onContextMenu(event.clientX, event.clientY, segment.id)
       }}
     >
-      {kind === 'video' ? (
+      {kind === 'caption' ? (
+        <>
+          <CaptionContent segment={segment} />
+          <TrimHandle segment={segment} edge="start" pps={pps} />
+          <TrimHandle segment={segment} edge="end" pps={pps} />
+        </>
+      ) : kind === 'video' ? (
         <>
           <VideoContent segment={segment} />
           {/* Une image se règle en tirant ses bords : sa durée est libre. */}
@@ -86,6 +92,44 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
         </>
       )}
     </motion.div>
+  )
+}
+
+/** Le texte d'un sous-titre ; double-clic pour le corriger sur place. */
+function CaptionContent({ segment }: { segment: Segment }): React.JSX.Element {
+  const [editing, setEditing] = useState(false)
+  const text = captionText(segment)
+
+  if (editing) {
+    return (
+      <input
+        className={styles.captionInput}
+        defaultValue={text}
+        autoFocus
+        spellCheck
+        aria-label="Texte du sous-titre"
+        onPointerDown={(event) => event.stopPropagation()}
+        onFocus={(event) => event.currentTarget.select()}
+        onBlur={(event) => {
+          const value = event.currentTarget.value.trim()
+          if (value && value !== text) useProject.getState().update((draft) => setCaptionText(draft, segment.id, value))
+          setEditing(false)
+        }}
+        onKeyDown={(event) => {
+          event.stopPropagation()
+          if (event.key === 'Enter') event.currentTarget.blur()
+          if (event.key === 'Escape') {
+            event.currentTarget.value = text
+            event.currentTarget.blur()
+          }
+        }}
+      />
+    )
+  }
+  return (
+    <div className={styles.captionText} onDoubleClick={() => setEditing(true)} title="Double-clic pour modifier">
+      {text}
+    </div>
   )
 }
 

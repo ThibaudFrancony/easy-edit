@@ -4,6 +4,7 @@ import { BrowserWindow, Menu, app, dialog, ipcMain, shell } from 'electron'
 import type { ExportEvent, ExportRequest, MenuAction, OpenedProject } from '@shared/types'
 import { emptyProject } from '@shared/project'
 import { buildExport, exportsFolder, freeExportPath } from './export'
+import { stopTranscriber, transcribe } from './transcription'
 import { type RunningFFmpeg, runFFmpeg } from './ffmpeg-run'
 import { AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, audioTrack, clipDetails, clipsFolder, ffmpeg, importFiles, listFiles, thumbnail } from './media'
 import {
@@ -149,6 +150,13 @@ ipcMain.handle('clips:open-folder', async () => {
   await shell.openPath(clipsFolder)
 })
 
+// ——— Transcription ———
+
+ipcMain.handle('transcribe', (event, samples: Float32Array) =>
+  transcribe(samples, (phase, fraction) => event.sender.send('transcribe-progress', { phase, fraction }))
+)
+app.on('will-quit', stopTranscriber)
+
 // ——— Export ———
 
 let running: RunningFFmpeg | null = null
@@ -166,14 +174,18 @@ ipcMain.handle('export:start', async (_event, request: ExportRequest) => {
   try {
     await mkdir(request.folder, { recursive: true })
     const output = freeExportPath(request.folder, request.name)
-    const { args, duration } = await buildExport(request.project, request.quality, output)
+    const { args, duration, cleanup } = await buildExport(request.project, request.quality, output)
     running = runFFmpeg(ffmpeg, args, output, duration, (fraction) => sendExport({ type: 'progress', fraction }))
     running.done
       .then(
         () => sendExport({ type: 'done', path: output }),
         (error: Error) => sendExport(error.name === 'AbortError' ? { type: 'cancelled' } : { type: 'error', message: error.message })
       )
-      .finally(() => (running = null))
+      .finally(() => {
+        running = null
+        // Le fichier de sous-titres temporaire, s'il y en a un.
+        void cleanup?.()
+      })
   } catch (error) {
     sendExport({ type: 'error', message: (error as Error).message })
   }
