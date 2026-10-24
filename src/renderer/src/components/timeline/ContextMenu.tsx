@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Segment } from '@shared/types'
 import { isTransformed } from '@shared/geometry'
-import { editFrame, resetFrame, useCanvas } from '@/state/canvas'
+import { applyFrameToAllCaptions, captionsShareFrame, editFrame, resetFrame, useCanvas } from '@/state/canvas'
 import { deleteLane, deleteSelection, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
@@ -95,6 +95,9 @@ function segmentItems(target: Segment | undefined, framable: boolean, linked: bo
     // Un sous-titre ne se rogne pas.
     if (!target.caption) items.push({ label: 'Rogner', icon: 'crop', run: () => editFrame(target.id, 'crop') })
     if (isTransformed(target)) items.push({ label: 'Réinitialiser le cadrage', icon: 'reset', run: () => resetFrame(target.id) })
+    if (target.caption && !captionsShareFrame(useProject.getState().project, target.id)) {
+      items.push({ label: 'Appliquer à tous les sous-titres', icon: 'captions', run: () => applyFrameToAllCaptions(target.id) })
+    }
   }
   items.push(
     { label: 'Couper au curseur', shortcut: 'S', icon: 'scissors', run: splitAtPlayhead, separated: items.length > 0 },

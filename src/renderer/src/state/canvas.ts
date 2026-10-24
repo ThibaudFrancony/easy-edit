@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Crop, Segment, Transform } from '@shared/types'
+import type { Crop, Project, Segment, Transform } from '@shared/types'
 import { MIN_VISIBLE, NO_CROP, NO_TRANSFORM, type Rect } from '@shared/geometry'
 import { player } from '@/engine/player'
 import { useProject } from './project'
@@ -80,6 +80,28 @@ export function setCrop(segmentId: string, crop: Crop): void {
     if (next.left + next.right > 1 - MIN_VISIBLE) next.right = 1 - MIN_VISIBLE - next.left
     if (next.top + next.bottom > 1 - MIN_VISIBLE) next.bottom = 1 - MIN_VISIBLE - next.top
     return { crop: next }
+  })
+}
+
+/** Donne à tous les sous-titres du projet la place et la taille de celui-ci. */
+export function applyFrameToAllCaptions(segmentId: string): void {
+  useProject.getState().update((draft) => {
+    const transform = draft.segments.find((s) => s.id === segmentId)?.transform
+    for (const segment of draft.segments) {
+      if (!segment.caption || segment.id === segmentId) continue
+      if (transform) segment.transform = { ...transform }
+      else delete segment.transform
+    }
+  })
+}
+
+/** Vrai quand tous les sous-titres ont déjà la place et la taille de celui-ci. */
+export function captionsShareFrame(project: Project, segmentId: string): boolean {
+  const t = project.segments.find((s) => s.id === segmentId)?.transform ?? NO_TRANSFORM
+  return project.segments.every((s) => {
+    if (!s.caption) return true
+    const u = s.transform ?? NO_TRANSFORM
+    return u.x === t.x && u.y === t.y && u.scale === t.scale
   })
 }
 

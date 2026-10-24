@@ -124,9 +124,13 @@
   color: var(--text-2);
 }
 
-.button:hover {
+.button:hover:not(:disabled) {
   background: var(--hover);
   color: var(--text);
+}
+
+.button:disabled {
+  color: var(--text-3);
 }
 
 .primary {

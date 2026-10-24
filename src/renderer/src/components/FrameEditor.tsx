@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Crop, Segment, Transform } from '@shared/types'
 import { NO_CROP, NO_TRANSFORM, type Rect, placement } from '@shared/geometry'
-import { type FrameMode, beginFrameGesture, onPreview, resetFrame, setCrop, setTransform, useCanvas } from '@/state/canvas'
+import { type FrameMode, applyFrameToAllCaptions, beginFrameGesture, captionsShareFrame, onPreview, resetFrame, setCrop, setTransform, useCanvas } from '@/state/canvas'
 import { useLibrary } from '@/state/library'
 import { usePlayback } from '@/engine/player'
 import { useProject } from '@/state/project'
@@ -96,10 +96,21 @@ export function FrameToolbar({ segmentId, mode }: { segmentId: string; mode: Fra
       <button className={styles.button} onClick={() => resetFrame(segmentId)}>
         Réinitialiser
       </button>
+      {caption && <ApplyToAllButton segmentId={segmentId} />}
       <button className={styles.primary} onClick={() => useCanvas.getState().stopEditing()}>
         Terminé
       </button>
     </motion.div>
+  )
+}
+
+/** Grisé quand tous les sous-titres ont déjà cette place et cette taille. */
+function ApplyToAllButton({ segmentId }: { segmentId: string }): React.JSX.Element {
+  const shared = useProject((s) => captionsShareFrame(s.project, segmentId))
+  return (
+    <button className={styles.button} disabled={shared} onClick={() => applyFrameToAllCaptions(segmentId)}>
+      Appliquer à tous
+    </button>
   )
 }
 
