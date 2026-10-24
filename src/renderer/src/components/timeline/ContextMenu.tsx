@@ -1,8 +1,9 @@
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import type { Segment } from '@shared/types'
 import { isTransformed } from '@shared/geometry'
 import { editFrame, resetFrame, useCanvas } from '@/state/canvas'
-import { deleteSelection, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
+import { deleteLane, deleteSelection, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { quick } from '@/lib/motion'
@@ -20,7 +21,7 @@ interface Item {
 
 /**
  * Menu du clic droit, sur un morceau de la timeline ou sur l'aperçu. Couper, lier et supprimer agissent sur la
- * sélection ; redimensionner et rogner sur le morceau visé (vidéo ou image).
+ * sélection ; redimensionner et rogner sur le morceau visé (vidéo ou image). Sur l'en-tête d'une piste : la supprimer.
  */
 export function ContextMenu(): React.JSX.Element {
   const menu = useCanvas((s) => s.menu)
@@ -45,20 +46,7 @@ export function ContextMenu(): React.JSX.Element {
     }
   }, [menu, close])
 
-  const items: Item[] = []
-  if (target && framable) {
-    items.push(
-      { label: 'Redimensionner', icon: 'resize', run: () => editFrame(target.id, 'resize') },
-      { label: 'Rogner', icon: 'crop', run: () => editFrame(target.id, 'crop') }
-    )
-    if (isTransformed(target)) items.push({ label: 'Réinitialiser le cadrage', icon: 'reset', run: () => resetFrame(target.id) })
-  }
-  items.push(
-    { label: 'Couper au curseur', shortcut: 'S', icon: 'scissors', run: splitAtPlayhead, separated: items.length > 0 },
-    { label: linked ? 'Délier' : 'Lier', shortcut: '⌘L', icon: linked ? 'unlink' : 'link', run: toggleLinkSelection },
-    { label: 'Supprimer', shortcut: '⌫', icon: 'trash', run: () => deleteSelection(false) },
-    { label: 'Supprimer et refermer', shortcut: '⇧⌫', icon: 'trash', run: () => deleteSelection(true) }
-  )
+  const items: Item[] = menu?.laneId ? laneItems(menu.laneId) : segmentItems(target, framable, linked)
   const position = menu
 
   return (
@@ -94,4 +82,25 @@ export function ContextMenu(): React.JSX.Element {
       )}
     </AnimatePresence>
   )
+}
+
+function laneItems(laneId: string): Item[] {
+  return [{ label: 'Supprimer la piste', icon: 'trash', run: () => deleteLane(laneId) }]
+}
+
+function segmentItems(target: Segment | undefined, framable: boolean, linked: boolean): Item[] {
+  const items: Item[] = []
+  if (target && framable) {
+    items.push({ label: 'Redimensionner', icon: 'resize', run: () => editFrame(target.id, 'resize') })
+    // Un sous-titre ne se rogne pas.
+    if (!target.caption) items.push({ label: 'Rogner', icon: 'crop', run: () => editFrame(target.id, 'crop') })
+    if (isTransformed(target)) items.push({ label: 'Réinitialiser le cadrage', icon: 'reset', run: () => resetFrame(target.id) })
+  }
+  items.push(
+    { label: 'Couper au curseur', shortcut: 'S', icon: 'scissors', run: splitAtPlayhead, separated: items.length > 0 },
+    { label: linked ? 'Délier' : 'Lier', shortcut: '⌘L', icon: linked ? 'unlink' : 'link', run: toggleLinkSelection },
+    { label: 'Supprimer', shortcut: '⌫', icon: 'trash', run: () => deleteSelection(false) },
+    { label: 'Supprimer et refermer', shortcut: '⇧⌫', icon: 'trash', run: () => deleteSelection(true) }
+  )
+  return items
 }

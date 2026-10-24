@@ -17,9 +17,10 @@ import { Ruler } from './Ruler'
 import { SNAP_DISTANCE, SegmentView } from './SegmentView'
 import styles from './Timeline.module.css'
 
-const LANE_HEIGHT = { caption: 40, video: 66, audio: 40 } as const
-/** Ordre des familles de pistes, de haut en bas : sous-titres, vidéo, audio. */
-const KIND_ORDER = { caption: 0, video: 1, audio: 2 } as const
+/** Hauteur d'une piste : une piste de sous-titres reste basse, comme une piste audio. */
+const laneHeight = (lane: Lane): number => (lane.kind === 'video' && !lane.look ? 66 : 40)
+/** Ordre des familles de pistes, de haut en bas : vidéo (sous-titres compris), puis audio. */
+const KIND_ORDER = { video: 0, audio: 1 } as const
 
 interface Ghost {
   start: number
@@ -114,12 +115,16 @@ export function Timeline(): React.JSX.Element {
                   data-inspected={inspected === lane.id}
                   data-transcribe={transcribeTarget === lane.id}
                   {...transcribeDrop(lane.id, lane.kind)}
-                  style={{ height: LANE_HEIGHT[lane.kind] }}
+                  style={{ height: laneHeight(lane) }}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0 }}
                   transition={standard}
                   onClick={() => useTimeline.getState().inspect(inspected === lane.id ? null : lane.id)}
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    useCanvas.getState().openLaneMenu(event.clientX, event.clientY, lane.id)
+                  }}
                 >
                   <span className={styles.headName}>{lane.name}</span>
                   <AnimatePresence>
@@ -201,7 +206,7 @@ export function Timeline(): React.JSX.Element {
                     data-lane-id={lane.id}
                     data-transcribe={transcribeTarget === lane.id}
                     {...transcribeDrop(lane.id, lane.kind)}
-                    style={{ height: LANE_HEIGHT[lane.kind] }}
+                    style={{ height: laneHeight(lane) }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}

@@ -35,7 +35,7 @@ export interface ClipDetails {
   audioTracks: AudioTrackInfo[]
 }
 
-export type LaneKind = 'video' | 'audio' | 'caption'
+export type LaneKind = 'video' | 'audio'
 
 export interface Lane {
   id: string
@@ -48,7 +48,10 @@ export interface Lane {
   normalized: boolean
   /** Piste de fond sonore ajoutée à la main (renommable, supprimable). Absente des anciens projets. */
   music?: boolean
-  /** Piste de sous-titres : leur style et leur couleur d'accent. */
+  /**
+   * Piste de sous-titres (une piste vidéo comme les autres : elle s'empile, se déplace et se redimensionne) :
+   * le style et la couleur d'accent de ses sous-titres.
+   */
   look?: CaptionLook
 }
 
@@ -84,7 +87,7 @@ export interface Segment {
   transform?: Transform
   /** Rognage, en fractions du média de chaque côté. Absent : rien n'est rogné. */
   crop?: Crop
-  /** Sous-titre (sur une piste de sous-titres) : ses mots, avec leurs temps. `source` est alors vide. */
+  /** Sous-titre : ses mots, avec leurs temps. `source` est alors vide. Placé dans l'image par `transform` (pas de `crop`). */
   caption?: { words: CaptionWord[] }
 }
 

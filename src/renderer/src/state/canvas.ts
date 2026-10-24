@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { Crop, Segment, Transform } from '@shared/types'
-import { MIN_VISIBLE, NO_CROP, NO_TRANSFORM } from '@shared/geometry'
+import { MIN_VISIBLE, NO_CROP, NO_TRANSFORM, type Rect } from '@shared/geometry'
 import { player } from '@/engine/player'
 import { useProject } from './project'
 
@@ -10,16 +10,23 @@ export type FrameMode = 'resize' | 'crop'
 
 /**
  * Ce que chaque piste vidéo montre en ce moment dans l'aperçu, et le format de son média (tenu à jour à chaque image
- * par l'aperçu) : sert à savoir quelle piste est sous le pointeur et à placer les poignées de cadrage.
+ * par l'aperçu) : sert à savoir quelle piste est sous le pointeur et à placer les poignées de cadrage. Un sous-titre
+ * n'a pas de format : on mesure directement la place de son texte (`rect`, en fractions de l'image).
  */
-export const onPreview = new Map<string, { segment: Segment; mediaAspect: number }>()
+export const onPreview = new Map<string, { segment: Segment; mediaAspect: number; rect?: Rect }>()
 
 interface CanvasState {
   /** Le morceau dont on règle le cadrage sur l'aperçu, et comment. */
   editing: { segmentId: string; mode: FrameMode } | null
-  /** Clic droit : le menu et le morceau qu'il vise (choisi dans la timeline ou sous le pointeur dans l'aperçu). */
-  menu: { x: number; y: number; segmentId: string | null } | null
+  /**
+   * Clic droit : le menu et ce qu'il vise, un morceau (choisi dans la timeline ou sous le pointeur dans l'aperçu)
+   * ou une piste (son en-tête).
+   */
+  menu: { x: number; y: number; segmentId: string | null; laneId?: string } | null
+  /** Change quand la place mesurée d'un sous-titre change (`onPreview`) : le contour et les poignées le suivent. */
+  measured: number
   openMenu(x: number, y: number, segmentId: string | null): void
+  openLaneMenu(x: number, y: number, laneId: string): void
   closeMenu(): void
   stopEditing(): void
 }
@@ -27,7 +34,9 @@ interface CanvasState {
 export const useCanvas = create<CanvasState>()((set) => ({
   editing: null,
   menu: null,
+  measured: 0,
   openMenu: (x, y, segmentId) => set({ menu: { x, y, segmentId } }),
+  openLaneMenu: (x, y, laneId) => set({ menu: { x, y, segmentId: null, laneId } }),
   closeMenu: () => set({ menu: null }),
   stopEditing: () => set({ editing: null })
 }))

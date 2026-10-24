@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { produce } from 'immer'
 import type { OpenedProject, Project } from '@shared/types'
-import { emptyProject } from '@shared/project'
+import { emptyProject, upgradeProject } from '@shared/project'
 
 /** Nombre d'étapes gardées pour Annuler. Les projets étant immuables, une étape ne coûte que ce qui a changé. */
 const HISTORY_LIMIT = 200
@@ -28,7 +28,7 @@ export const useProject = create<ProjectState>()((set, get) => ({
   future: [],
   load: (opened) => {
     flushSave()
-    set({ path: opened.path, project: opened.project, past: [], future: [] })
+    set({ path: opened.path, project: upgradeProject(opened.project), past: [], future: [] })
   },
   update: (recipe, mergeKey) => {
     const { project, past } = get()

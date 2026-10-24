@@ -14,8 +14,10 @@ const FONT_BY_WEIGHT: Record<CaptionStyle['weight'], { family: string; bold: boo
   800: { family: 'Inter ExtraBold', bold: false }
 }
 
-// Ascendant + descendant d'Inter font environ 1,21 em : la boîte de ligne s'étend de 0,605 em de part et d'autre du centre.
-const LINE_HALF_HEIGHT = 0.605
+// Ascendant + descendant d'Inter : 2478 / 2048 = 1,21 em. libass règle sa taille sur cette hauteur de ligne quand
+// CSS la règle sur l'em : la taille ASS est donc l'em de l'aperçu × 1,21. La ligne s'étend de 0,605 em autour du centre.
+const LINE_HEIGHT = 2478 / 2048
+const LINE_HALF_HEIGHT = LINE_HEIGHT / 2
 const SIDE_MARGIN = 0.07
 const OUTLINE = { colour: '#000000', opacity: 0.7 }
 const BOX = { colour: '#0B0C0F', opacity: 0.78 }
@@ -54,17 +56,17 @@ function escapeText(text: string): string {
 }
 
 function styleLine(style: CaptionStyle, width: number, height: number): string {
-  const fontsize = Math.round(style.size * height)
+  const em = style.size * height
   const font = FONT_BY_WEIGHT[style.weight]
-  const marginV = Math.max(0, Math.round(height - style.y * height - LINE_HALF_HEIGHT * fontsize))
+  const marginV = Math.max(0, Math.round(height - style.y * height - LINE_HALF_HEIGHT * em))
   const marginSide = Math.round(SIDE_MARGIN * width)
   // Avec BorderStyle 3, libass peint la boîte dans OutlineColour (BackColour ne sert qu'à l'ombre).
-  const outline = style.box ? BOX_PADDING_Y * fontsize : style.outline * fontsize
+  const outline = style.box ? BOX_PADDING_Y * em : style.outline * em
   const colour = style.box ? assColour(BOX.colour, BOX.opacity) : assColour(OUTLINE.colour, OUTLINE.opacity)
   return [
     style.id,
     font.family,
-    fontsize,
+    Math.round(em * LINE_HEIGHT),
     assColour('#FFFFFF'),
     assColour('#FFFFFF'),
     colour,
@@ -88,10 +90,23 @@ function styleLine(style: CaptionStyle, width: number, height: number): string {
   ].join(',')
 }
 
+/**
+ * Sous-titre déplacé ou agrandi sur l'aperçu : son centre passe en (0,5 + x, y du style + y) de l'image et sa taille
+ * est multipliée par `scale`, contour compris. Sans cadrage, c'est la position du style qui s'applique.
+ */
+function placementTags(segment: Segment, style: CaptionStyle, width: number, height: number): string {
+  const t = segment.transform
+  if (!t) return ''
+  const em = style.size * height * t.scale
+  const outline = (style.box ? BOX_PADDING_Y : style.outline) * em
+  return `{\\an5\\pos(${Math.round(width * (0.5 + t.x))},${Math.round(height * (style.y + t.y))})\\fs${Math.round(em * LINE_HEIGHT)}\\bord${outline.toFixed(2)}}`
+}
+
 /** Les lignes de dialogue d'un sous-titre : une par tranche de temps où les mots affichés ne changent pas. */
-function dialoguesFor(segment: Segment, lane: Lane, style: CaptionStyle): Dialogue[] {
+function dialoguesFor(segment: Segment, lane: Lane, style: CaptionStyle, width: number, height: number): Dialogue[] {
   const words = segment.caption?.words ?? []
   const look = lane.look ?? DEFAULT_LOOK
+  const place = placementTags(segment, style, width, height)
   const cuts = new Set<number>([0, segment.duration])
   for (const word of words) {
     cuts.add(Math.min(Math.max(word.start, 0), segment.duration))
@@ -115,30 +130,32 @@ function dialoguesFor(segment: Segment, lane: Lane, style: CaptionStyle): Dialog
     const start = segment.start + from
     const end = segment.start + to
     if (!style.box) {
-      dialogues.push({ layer: 0, start, end, style: style.id, text: coloured })
+      dialogues.push({ layer: 0, start, end, style: style.id, text: place + coloured })
       continue
     }
     // Bandeau : libass peint une boîte par morceau de texte de même couleur, et les boîtes translucides se
     // superposent (zones plus sombres). On dessine donc la boîte seule (texte invisible) sous le texte seul
     // (boîte invisible), ce qui garde une boîte d'un seul tenant.
-    dialogues.push({ layer: 0, start, end, style: style.id, text: `{\\1a&HFF&}${BOX_SPACE}${plain}${BOX_SPACE}` })
-    dialogues.push({ layer: 1, start, end, style: style.id, text: `{\\3a&HFF&}${BOX_SPACE}${coloured}${BOX_SPACE}` })
+    dialogues.push({ layer: 0, start, end, style: style.id, text: `${place}{\\1a&HFF&}${BOX_SPACE}${plain}${BOX_SPACE}` })
+    dialogues.push({ layer: 1, start, end, style: style.id, text: `${place}{\\3a&HFF&}${BOX_SPACE}${coloured}${BOX_SPACE}` })
   }
   return dialogues
 }
 
-/** Fichier ASS des sous-titres du montage, pour une image de `width` × `height` ; `null` s'il n'y en a aucun. */
-export function buildCaptionsASS(project: Project, width: number, height: number): string | null {
+/**
+ * Fichier ASS des sous-titres d'une piste, pour une image de `width` × `height` ; `null` si elle n'en a aucun.
+ * Une piste à la fois : chacune est dessinée sur son propre calque, à sa place dans l'empilement des pistes.
+ */
+export function buildCaptionsASS(project: Project, laneId: string, width: number, height: number): string | null {
   const dialogues: Dialogue[] = []
   const used = new Set<CaptionStyleId>()
-  for (const lane of project.lanes) {
-    if (lane.kind !== 'caption' || lane.muted) continue
-    const look = lane.look ?? DEFAULT_LOOK
-    const style = captionStyle(look.style)
+  const lane = project.lanes.find((l) => l.id === laneId)
+  if (lane && !lane.muted) {
+    const style = captionStyle((lane.look ?? DEFAULT_LOOK).style)
     for (const segment of segmentsIn(project, lane.id)) {
       if (!segment.caption) continue
       used.add(style.id)
-      dialogues.push(...dialoguesFor(segment, lane, style))
+      dialogues.push(...dialoguesFor(segment, lane, style, width, height))
     }
   }
   if (used.size === 0) return null

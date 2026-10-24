@@ -33,8 +33,10 @@ function Editor({ segment, mode }: { segment: Segment; mode: FrameMode }): React
   const details = useLibrary((s) => s.details[segment.source])
   const shown = onPreview.get(segment.laneId)
   const mediaAspect = shown?.segment.id === segment.id ? shown.mediaAspect : details && details.height > 0 ? details.width / details.height : size.width / size.height
-  const { full, visible } = placement(mediaAspect, size.width / Math.max(1, size.height), segment)
-  const drag = useHandleDrag(segment, mode, full, size)
+  const textRect = useMeasuredCaption(segment)
+  // Un sous-titre n'a pas de format de média : sa boîte est la place mesurée de son texte, et il ne se rogne pas.
+  const { full, visible } = textRect ? { full: textRect, visible: textRect } : placement(mediaAspect, size.width / Math.max(1, size.height), segment)
+  const drag = useHandleDrag(segment, segment.caption ? 'resize' : mode, full, size)
 
   return (
     <motion.div
@@ -61,10 +63,14 @@ function Editor({ segment, mode }: { segment: Segment; mode: FrameMode }): React
 
 /** Barre du cadrage : elle prend la place des commandes de lecture sous l'image, sans jamais la recouvrir. */
 export function FrameToolbar({ segmentId, mode }: { segmentId: string; mode: FrameMode }): React.JSX.Element {
-  const modes: { value: FrameMode; label: string }[] = [
-    { value: 'resize', label: 'Redimensionner' },
-    { value: 'crop', label: 'Rogner' }
-  ]
+  // Un sous-titre se déplace et se redimensionne, mais ne se rogne pas.
+  const caption = useProject((s) => Boolean(s.project.segments.find((seg) => seg.id === segmentId)?.caption))
+  const modes: { value: FrameMode; label: string }[] = caption
+    ? [{ value: 'resize', label: 'Redimensionner' }]
+    : [
+        { value: 'resize', label: 'Redimensionner' },
+        { value: 'crop', label: 'Rogner' }
+      ]
   return (
     <motion.div
       className={styles.toolbar}
@@ -143,8 +149,8 @@ function useHandleDrag(segment: Segment, mode: FrameMode, full: Rect, size: { wi
       if (mode === 'resize') {
         // Agrandir ou réduire autour du centre, selon l'éloignement du pointeur.
         const box = (event.currentTarget.parentElement?.parentElement ?? event.currentTarget).getBoundingClientRect()
-        const centerX = box.left + (0.5 + transform.x) * size.width
-        const centerY = box.top + (0.5 + transform.y) * size.height
+        const centerX = box.left + (start.full.x + start.full.width / 2) * size.width
+        const centerY = box.top + (start.full.y + start.full.height / 2) * size.height
         const before = Math.hypot(start.x - centerX, start.y - centerY)
         const after = Math.hypot(event.clientX - centerX, event.clientY - centerY)
         if (before > 2) setTransform(segment.id, { ...transform, scale: transform.scale * (after / before) })
@@ -181,15 +187,16 @@ export function SelectionOutline(): React.JSX.Element {
   const editing = useCanvas((s) => s.editing)
   const selection = useTimeline((s) => s.selection)
   const project = useProject((s) => s.project)
-  // Ce qui est visible change avec le temps : on suit le curseur de lecture.
+  // Ce qui est visible change avec le temps : on suit le curseur de lecture, et la place mesurée des sous-titres.
   usePlayback((s) => s.time)
+  useCanvas((s) => s.measured)
 
   const rects: { id: string; rect: Rect }[] = []
   if (!editing) {
     for (const [, shown] of onPreview) {
       if (!selection.has(shown.segment.id)) continue
       const segment = project.segments.find((s) => s.id === shown.segment.id)
-      if (segment) rects.push({ id: segment.id, rect: placement(shown.mediaAspect, size.width / Math.max(1, size.height), segment).visible })
+      if (segment) rects.push({ id: segment.id, rect: shown.rect ?? placement(shown.mediaAspect, size.width / Math.max(1, size.height), segment).visible })
     }
   }
 
@@ -200,4 +207,11 @@ export function SelectionOutline(): React.JSX.Element {
       ))}
     </div>
   )
+}
+
+/** La place mesurée du texte d'un sous-titre : elle dépend du texte, donc n'est connue qu'après son rendu. */
+function useMeasuredCaption(segment: Segment): Rect | null {
+  useCanvas((s) => s.measured)
+  const shown = onPreview.get(segment.laneId)
+  return segment.caption && shown?.segment.id === segment.id ? (shown.rect ?? null) : null
 }

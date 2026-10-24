@@ -65,7 +65,8 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
   // ——— Image ———
   // Les pistes vidéo sont empilées de la plus basse à la plus haute, chacune dans l'ordre du temps.
   const lanesBottomUp = [...videoLanes(project)].reverse()
-  const firstSegment = lanesBottomUp.flatMap((lane) => segmentsIn(project, lane.id))[0]
+  // Le format vient du premier vrai média (un sous-titre n'a pas de taille).
+  const firstSegment = lanesBottomUp.flatMap((lane) => segmentsIn(project, lane.id)).find((s) => !s.caption)
   const first = firstSegment ? await clipDetails(firstSegment.source) : null
   const ratio = first && first.height > 0 ? first.width / first.height : 16 / 9
   const height = quality === '1080p' || !first ? 1080 : even(first.height)
@@ -74,8 +75,10 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
   let base = 'base0'
   graph.push(`color=c=black:s=${width}x${height}:r=${FPS}:d=${seconds(duration)},format=yuv420p[${base}]`)
   let layers = 0
+  const captionFiles: { path: string; text: string }[] = []
   for (const lane of lanesBottomUp) {
     for (const segment of segmentsIn(project, lane.id)) {
+      if (segment.caption) continue
       const index = segment.image
         ? addImageInput(segment.source, segment.duration)
         : addInput(segment.source, segment.sourceStart, segment.duration)
@@ -104,15 +107,23 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
       )
       base = next
     }
+    // Les sous-titres de la piste : libass les dessine sur un calque transparent (`alpha=1`), posé à la place de
+    // la piste dans l'empilement. Une piste vidéo au-dessus passe donc devant eux, comme dans l'aperçu.
+    const captions = buildCaptionsASS(project, lane.id, width, height)
+    if (captions !== null) {
+      const path = join(tmpdir(), `easy-edit-captions-${randomUUID()}.ass`)
+      captionFiles.push({ path, text: captions })
+      const layer = `c${layers++}`
+      const next = `base${layers}`
+      graph.push(
+        `color=c=black@0:s=${width}x${height}:r=${FPS}:d=${seconds(duration)},format=rgba,` +
+          `ass=filename=${filterValue(path)}:fontsdir=${filterValue(fontsFolder())}:alpha=1[${layer}]`
+      )
+      graph.push(`[${base}][${layer}]overlay=format=auto[${next}]`)
+      base = next
+    }
   }
-  // Sous-titres : libass les dessine par-dessus l'image finale.
-  const captions = buildCaptionsASS(project, width, height)
-  const captionsPath = captions === null ? null : join(tmpdir(), `easy-edit-captions-${randomUUID()}.ass`)
-  if (captionsPath) {
-    graph.push(`[${base}]format=yuv420p,ass=filename=${filterValue(captionsPath)}:fontsdir=${filterValue(fontsFolder())}[vout]`)
-  } else {
-    graph.push(`[${base}]format=yuv420p[vout]`)
-  }
+  graph.push(`[${base}]format=yuv420p[vout]`)
 
   // ——— Son ———
   const sounds: string[] = []
@@ -139,10 +150,10 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
 
   // Débit vidéo proportionnel au nombre de pixels : environ 15 Mb/s en 1080p60.
   const bitrate = Math.max(8, Math.round((width * height * FPS * 0.12) / 1e6))
-  if (captions !== null && captionsPath) await writeFile(captionsPath, captions, 'utf8')
+  await Promise.all(captionFiles.map((file) => writeFile(file.path, file.text, 'utf8')))
   return {
     duration,
-    cleanup: captionsPath ? () => rm(captionsPath, { force: true }) : undefined,
+    cleanup: captionFiles.length > 0 ? async () => void (await Promise.all(captionFiles.map((file) => rm(file.path, { force: true })))) : undefined,
     args: [
       ...inputs,
       '-filter_complex', graph.join(';'),

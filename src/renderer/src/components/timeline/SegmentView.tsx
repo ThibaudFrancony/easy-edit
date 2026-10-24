@@ -38,7 +38,7 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
 
   return (
     <motion.div
-      className={`${styles.segment} ${kind === 'caption' ? styles.caption : kind === 'video' ? styles.video : lane.music ? styles.music : styles.audio}`}
+      className={`${styles.segment} ${segment.caption ? styles.caption : kind === 'video' ? styles.video : lane.music ? styles.music : styles.audio}`}
       data-muted={lane.muted}
       data-selected={selected}
       data-dragging={dragging || trim !== null}
@@ -57,7 +57,7 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
         onContextMenu(event.clientX, event.clientY, segment.id)
       }}
     >
-      {kind === 'caption' ? (
+      {segment.caption ? (
         <>
           <CaptionContent segment={segment} />
           <TrimHandle segment={segment} edge="start" pps={pps} />

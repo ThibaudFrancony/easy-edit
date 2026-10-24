@@ -283,11 +283,14 @@ export function trimSegment(project: Project, id: string, edge: 'start' | 'end',
   clearRange(project, segment.laneId, segment.start, segment.start + segment.duration, new Set([id]))
 }
 
-/** Piste de sous-titres d'une piste audio (« Sous-titres · Micro »), créée tout en haut si besoin. */
+/**
+ * Piste de sous-titres d'une piste audio (« Sous-titres · Micro ») : une piste vidéo, créée tout en haut (donc
+ * par-dessus les autres) si elle n'existe pas encore.
+ */
 export function captionLane(project: Project, name: string, look: CaptionLook): string {
-  const existing = project.lanes.find((l) => l.kind === 'caption' && l.name === name)
+  const existing = project.lanes.find((l) => l.kind === 'video' && l.look && l.name === name)
   if (existing) return existing.id
-  const lane: Lane = { id: newID(), kind: 'caption', name, volume: 1, muted: false, normalized: false, look }
+  const lane: Lane = { id: newID(), kind: 'video', name, volume: 1, muted: false, normalized: false, look }
   project.lanes.unshift(lane)
   return lane.id
 }
@@ -321,4 +324,13 @@ export function setCaptionText(project: Project, id: string, text: string): void
     words.length === old.length
       ? old.map((w, i) => ({ ...w, text: words[i]! }))
       : words.map((word, i) => ({ text: word, start: (i * segment.duration) / words.length, end: ((i + 1) * segment.duration) / words.length }))
+}
+
+/**
+ * Met à jour un projet enregistré par une version plus ancienne de l'app. Les pistes de sous-titres avaient
+ * leur propre famille (`kind: 'caption'`) : ce sont maintenant des pistes vidéo.
+ */
+export function upgradeProject(project: Project): Project {
+  for (const lane of project.lanes) if ((lane.kind as string) === 'caption') lane.kind = 'video'
+  return project
 }

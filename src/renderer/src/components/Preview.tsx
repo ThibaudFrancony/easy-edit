@@ -4,7 +4,7 @@ import type { Segment, Transform } from '@shared/types'
 import { segmentsIn, videoLanes } from '@shared/project'
 import { NO_CROP, NO_TRANSFORM, contains, placement } from '@shared/geometry'
 import { beginFrameGesture, onPreview, setTransform, useCanvas } from '@/state/canvas'
-import { CaptionLayer } from './Captions'
+import { LaneCaptions } from './Captions'
 import { FrameEditor, FrameToolbar, SelectionOutline } from './FrameEditor'
 import { FRAME, player, usePlayback } from '@/engine/player'
 import { useLibrary } from '@/state/library'
@@ -41,7 +41,6 @@ export function Preview(): React.JSX.Element {
           }}
         >
           <VideoLayers />
-          <CaptionLayer />
           <SelectionOutline />
           <FrameEditor />
           <AnimatePresence>
@@ -100,7 +99,8 @@ const moveOnPreview = (() => {
 function segmentAt(x: number, y: number, frameAspect: number): Segment | null {
   for (const lane of videoLanes(useProject.getState().project)) {
     const shown = onPreview.get(lane.id)
-    if (shown && contains(placement(shown.mediaAspect, frameAspect, shown.segment).visible, x, y)) return shown.segment
+    const rect = shown && (shown.rect ?? placement(shown.mediaAspect, frameAspect, shown.segment).visible)
+    if (shown && rect && contains(rect, x, y)) return shown.segment
   }
   return null
 }
@@ -109,7 +109,7 @@ function segmentAt(x: number, y: number, frameAspect: number): Segment | null {
 function useAspectRatio(): string {
   const firstSource = useProject((s) => {
     for (const lane of [...videoLanes(s.project)].reverse()) {
-      const segment = segmentsIn(s.project, lane.id)[0]
+      const segment = segmentsIn(s.project, lane.id).find((seg) => !seg.caption)
       if (segment) return segment.source
     }
     return undefined
@@ -162,6 +162,7 @@ function LaneLayer({ laneId }: { laneId: string }): React.JSX.Element {
       <video ref={first} className={styles.video} muted playsInline preload="auto" />
       <video ref={second} className={styles.video} muted playsInline preload="auto" />
       <img ref={still} className={styles.video} alt="" draggable={false} />
+      <LaneCaptions laneId={laneId} />
     </div>
   )
 }
@@ -172,6 +173,17 @@ function sync(laneId: string, layer: HTMLElement, videos: HTMLVideoElement[], st
   const index = segments.findIndex((s) => time >= s.start && time < s.start + s.duration)
   const current = segments[index]
   const frameAspect = layer.clientWidth / Math.max(1, layer.clientHeight)
+
+  // Un sous-titre est dessiné par LaneCaptions, qui tient aussi le registre : ici on cache seulement les médias.
+  if (current?.caption) {
+    for (const video of videos) {
+      show(video, false)
+      if (!video.paused) video.pause()
+    }
+    show(still, false)
+    preloadNext(segments[index + 1], current, time, videos)
+    return
+  }
 
   if (!current || current.image) {
     for (const video of videos) {
@@ -220,7 +232,7 @@ function sync(laneId: string, layer: HTMLElement, videos: HTMLVideoElement[], st
 
 /** Prépare le prochain morceau vidéo sur un lecteur libre, pour l'enchaîner sans attente. */
 function preloadNext(next: Segment | undefined, current: Segment | undefined, time: number, free: HTMLVideoElement[]): void {
-  if (!next || next.image || next.source === current?.source || next.start - time > 2) return
+  if (!next || next.image || next.caption || next.source === current?.source || next.start - time > 2) return
   const video = free.find((v) => v.dataset.visible !== 'true')
   if (video) load(video, window.api.mediaURL(next.source), next.sourceStart)
 }

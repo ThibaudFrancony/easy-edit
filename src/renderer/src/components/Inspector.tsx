@@ -50,7 +50,7 @@ function LaneSettings({ lane }: { lane: Lane }): React.JSX.Element {
   // On garde toujours au moins une piste vidéo.
   const videoLaneCount = useProject((s) => s.project.lanes.filter((l) => l.kind === 'video').length)
   const video = lane.kind === 'video'
-  const caption = lane.kind === 'caption'
+  const caption = lane.kind === 'video' && lane.look !== undefined
   const editable = lane.music || video || caption
 
   return (

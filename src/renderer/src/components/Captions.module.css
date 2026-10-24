@@ -9,10 +9,10 @@
 
 .caption {
   position: absolute;
-  left: 7%;
-  right: 7%;
   translate: 0 -50%;
   text-align: center;
+  /* libass coupe les lignes en les équilibrant (WrapStyle 0) : même chose ici. */
+  text-wrap: balance;
   color: #fff;
   line-height: 1.18;
   letter-spacing: -0.01em;
