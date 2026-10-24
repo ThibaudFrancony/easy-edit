@@ -29,6 +29,7 @@ export function Timeline(): React.JSX.Element {
   const scrollLeft = useTimeline((s) => s.scrollLeft)
   const viewportWidth = useTimeline((s) => s.viewportWidth)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const rowsRef = useRef<HTMLDivElement>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
   const [menu, setMenu] = useState<MenuPosition | null>(null)
   /** Fichiers audio glissés depuis le Finder : l'instant où ils seront posés. */
@@ -44,6 +45,7 @@ export function Timeline(): React.JSX.Element {
   const contentWidth = Math.max(LEADING_INSET * 2 + (duration + 30) * pps, viewportWidth)
 
   useScrollSync(scrollRef)
+  useRevealNewLane(rowsRef, lanes.length)
   useWheelZoom(scrollRef)
 
   function dropPosition(clientX: number): Ghost | null {
@@ -77,7 +79,7 @@ export function Timeline(): React.JSX.Element {
           </div>
         </div>
 
-        <div className={styles.rows}>
+        <div ref={rowsRef} className={styles.rows}>
           <div className={styles.heads}>
             <AnimatePresence initial={false}>
               {lanes.map((lane) => (
@@ -361,4 +363,20 @@ function NormalizeButton({ disabled }: { disabled: boolean }): React.JSX.Element
       Normaliser
     </button>
   )
+}
+
+/** Quand une piste s'ajoute en bas, la timeline défile en douceur pour la montrer. */
+function useRevealNewLane(rowsRef: React.RefObject<HTMLDivElement | null>, laneCount: number): void {
+  const previous = useRef(laneCount)
+  useEffect(() => {
+    const grew = laneCount > previous.current
+    previous.current = laneCount
+    if (!grew) return
+    // Après l'animation d'apparition de la piste, pour défiler jusqu'à sa vraie position.
+    const timer = setTimeout(() => {
+      const rows = rowsRef.current
+      rows?.scrollTo({ top: rows.scrollHeight, behavior: 'smooth' })
+    }, 60)
+    return () => clearTimeout(timer)
+  }, [laneCount, rowsRef])
 }

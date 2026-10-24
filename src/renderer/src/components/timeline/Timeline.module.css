@@ -47,9 +47,13 @@
   flex: 1;
   min-height: 0;
   display: flex;
+  /* Pas « stretch » : la zone des morceaux doit grandir avec les pistes, comme la colonne des noms, et le tout défiler ensemble. */
+  align-items: flex-start;
   gap: var(--lane-gap);
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--control-strong) transparent;
 }
 
 .heads {
@@ -160,6 +164,8 @@
 .scroller {
   flex: 1;
   min-width: 0;
+  /* Toujours au moins toute la hauteur visible, pour pouvoir déposer un clip sous les pistes. */
+  min-height: 100%;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
