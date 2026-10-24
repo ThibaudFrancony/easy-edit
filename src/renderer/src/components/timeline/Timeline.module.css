@@ -85,7 +85,6 @@
 .head[data-inspected='true'] {
   background: var(--selected);
   color: var(--text);
-  box-shadow: inset 2px 0 0 var(--accent);
 }
 
 .head[data-kind='video'] {

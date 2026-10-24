@@ -9,7 +9,7 @@ Petit logiciel de montage vidéo maison pour macOS. Il sert uniquement sur le Ma
 - « Cut taglines, helper text and secondary labels. If a screen needs them to make sense, fix the layout. »
 - « Make the best decision that will elevate all three: the user experience (UX), developer experience (DX), and agent experience (AX) always, without breaking anything. »
 - **Professionnel mais simple.** Direction « Studio » (voir Design) : sombre, dense, sobre, dans l'esprit de DaVinci Resolve ou Premiere. Ni look Apple, ni style « site web ».
-- **Rien qui trahisse une interface générée par IA.** Pas de dégradés, de lueurs, de néon, d'emoji, d'icône « étincelles », de cartes flottantes partout, de violet par défaut, de textes d'accroche. Un seul accent, des alignements nets, des espacements réguliers : un outil propre.
+- **Rien qui trahisse une interface générée par IA.** Pas de dégradés, de lueurs, de néon, d'emoji, d'icône « étincelles », de cartes flottantes partout, de violet par défaut, de textes d'accroche, ni de petit liseré coloré sur le bord d'un élément sélectionné (une sélection se montre par un fond gris `#1C2027`). Un seul accent, des alignements nets, des espacements réguliers : un outil propre.
 - **Montage non destructif.** Les clips d'origine ne sont jamais modifiés. Un projet décrit ce qu'on garde ; la vidéo n'est calculée qu'à l'export.
 
 ## Stack
