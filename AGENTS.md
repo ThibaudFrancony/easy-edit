@@ -98,10 +98,12 @@ scripts/icon.mjs   génère l'icône à partir du SVG
 npm install
 npm run dev          # l'app en développement, rechargement à chaud de l'interface
 npm run typecheck    # vérification TypeScript
-npm run app          # construit « Easy Edit.app » (signée localement)
+npm run app          # construit « Easy Edit.app » (signée localement) dans $TMPDIR/easy-edit-build
 npm run install-app  # construit, installe dans /Applications et lance
 npm run icon         # régénère l'icône après une modification de resources/icon.svg
 ```
+
+Aucune copie de l'app n'est laissée dans le projet (dossier indexé par Spotlight) : seule celle de /Applications existe après `install-app`.
 
 Le processus principal (`src/main`) n'est pas rechargé à chaud : relancer `npm run dev` après l'avoir modifié. Il n'y a pas encore de tests automatiques.
 
