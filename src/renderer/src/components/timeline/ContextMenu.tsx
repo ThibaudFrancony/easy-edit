@@ -96,7 +96,7 @@ function segmentItems(target: Segment | undefined, framable: boolean, linked: bo
     if (!target.caption) items.push({ label: 'Rogner', icon: 'crop', run: () => editFrame(target.id, 'crop') })
     if (isTransformed(target)) items.push({ label: 'Réinitialiser le cadrage', icon: 'reset', run: () => resetFrame(target.id) })
     if (target.caption && !captionsShareFrame(useProject.getState().project, target.id)) {
-      items.push({ label: 'Appliquer à tous les sous-titres', icon: 'captions', run: () => applyFrameToAllCaptions(target.id) })
+      items.push({ label: 'Appliquer à toute la piste', icon: 'captions', run: () => applyFrameToAllCaptions(target.id) })
     }
   }
   items.push(

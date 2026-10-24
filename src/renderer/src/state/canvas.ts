@@ -83,23 +83,26 @@ export function setCrop(segmentId: string, crop: Crop): void {
   })
 }
 
-/** Donne à tous les sous-titres du projet la place et la taille de celui-ci. */
+/** Donne à tous les sous-titres de sa piste la place et la taille de celui-ci. */
 export function applyFrameToAllCaptions(segmentId: string): void {
   useProject.getState().update((draft) => {
-    const transform = draft.segments.find((s) => s.id === segmentId)?.transform
+    const source = draft.segments.find((s) => s.id === segmentId)
+    if (!source) return
+    const transform = source.transform
     for (const segment of draft.segments) {
-      if (!segment.caption || segment.id === segmentId) continue
+      if (!segment.caption || segment.laneId !== source.laneId || segment.id === segmentId) continue
       if (transform) segment.transform = { ...transform }
       else delete segment.transform
     }
   })
 }
 
-/** Vrai quand tous les sous-titres ont déjà la place et la taille de celui-ci. */
+/** Vrai quand tous les sous-titres de sa piste ont déjà la place et la taille de celui-ci. */
 export function captionsShareFrame(project: Project, segmentId: string): boolean {
-  const t = project.segments.find((s) => s.id === segmentId)?.transform ?? NO_TRANSFORM
+  const source = project.segments.find((s) => s.id === segmentId)
+  const t = source?.transform ?? NO_TRANSFORM
   return project.segments.every((s) => {
-    if (!s.caption) return true
+    if (!s.caption || s.laneId !== source?.laneId) return true
     const u = s.transform ?? NO_TRANSFORM
     return u.x === t.x && u.y === t.y && u.scale === t.scale
   })

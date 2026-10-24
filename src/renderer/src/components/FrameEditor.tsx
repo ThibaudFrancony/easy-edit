@@ -104,7 +104,7 @@ export function FrameToolbar({ segmentId, mode }: { segmentId: string; mode: Fra
   )
 }
 
-/** Grisé quand tous les sous-titres ont déjà cette place et cette taille. */
+/** Grisé quand tous les sous-titres de la piste ont déjà cette place et cette taille. */
 function ApplyToAllButton({ segmentId }: { segmentId: string }): React.JSX.Element {
   const shared = useProject((s) => captionsShareFrame(s.project, segmentId))
   return (

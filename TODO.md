@@ -77,7 +77,7 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - [x] Quatre styles dans la direction Studio (Classique, Bandeau, Impact, Mot à mot) et une couleur d'accent pour le mot prononcé (ou sans accent), choisis par piste dans l'inspecteur.
 - [x] Les sous-titres sont incrustés à l'export, dans le même style (libass, police Inter fournie avec l'app).
 - [x] La piste de sous-titres est une piste vidéo : elle se superpose aux autres selon sa place dans la timeline, et chaque sous-titre se déplace (glisser sur l'aperçu) et se redimensionne (clic droit, « Redimensionner ») comme une image. Il ne se rogne pas.
-- [x] « Appliquer à tous » (barre de cadrage, ou clic droit « Appliquer à tous les sous-titres ») : tous les sous-titres du projet prennent la place et la taille de celui-ci, en une étape d'annulation.
+- [x] « Appliquer à tous » (barre de cadrage, ou clic droit « Appliquer à toute la piste ») : tous les sous-titres de la même piste prennent la place et la taille de celui-ci, en une étape d'annulation.
 - [x] Clic droit sur le nom d'une piste : « Supprimer la piste » (annulable).
 
 ## Plus tard
