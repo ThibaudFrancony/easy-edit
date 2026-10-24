@@ -1,10 +1,14 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { Segment } from '@shared/types'
+import type { Segment, Transform } from '@shared/types'
 import { segmentsIn, videoLanes } from '@shared/project'
+import { NO_CROP, NO_TRANSFORM, contains, placement } from '@shared/geometry'
+import { beginFrameGesture, onPreview, setTransform, useCanvas } from '@/state/canvas'
+import { FrameEditor, FrameToolbar, SelectionOutline } from './FrameEditor'
 import { FRAME, player, usePlayback } from '@/engine/player'
 import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
+import { useTimeline } from '@/state/timeline'
 import { fade } from '@/lib/motion'
 import { timecode } from '@/lib/format'
 import { Icon } from './Icon'
@@ -20,8 +24,24 @@ export function Preview(): React.JSX.Element {
   return (
     <main className={styles.preview}>
       <div className={styles.stage}>
-        <div className={styles.frame} style={{ aspectRatio: ratio, width: `min(100cqw, 100cqh * ${ratio.replace('/', ' / ')})` }}>
+        <div
+          className={styles.frame}
+          style={{ aspectRatio: ratio, width: `min(100cqw, 100cqh * ${ratio.replace('/', ' / ')})` }}
+          onPointerDown={moveOnPreview.down}
+          onPointerMove={moveOnPreview.move}
+          onPointerUp={moveOnPreview.up}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            const box = event.currentTarget.getBoundingClientRect()
+            const segment = segmentAt((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height, box.width / box.height)
+            if (!segment) return
+            useTimeline.getState().setSelection(new Set([segment.id]))
+            useCanvas.getState().openMenu(event.clientX, event.clientY, segment.id)
+          }}
+        >
           <VideoLayers />
+          <SelectionOutline />
+          <FrameEditor />
           <AnimatePresence>
             {empty && (
               <motion.div className={styles.placeholder} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}>
@@ -31,9 +51,56 @@ export function Preview(): React.JSX.Element {
           </AnimatePresence>
         </div>
       </div>
-      <Transport />
+      <BottomBar />
     </main>
   )
+}
+
+/**
+ * Clic sur l'aperçu : sélectionne ce qui est visible sous le pointeur (la piste la plus haute d'abord) ;
+ * en glissant, on le déplace dans l'image.
+ */
+const moveOnPreview = (() => {
+  let drag: { id: string; x: number; y: number; width: number; height: number; transform: Transform; moved: boolean } | null = null
+  const pointIn = (event: React.PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect()
+    return { box, segment: segmentAt((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height, box.width / box.height) }
+  }
+  return {
+    down(event: React.PointerEvent<HTMLDivElement>): void {
+      if (event.button !== 0 || useCanvas.getState().editing) return
+      const { box, segment } = pointIn(event)
+      useTimeline.getState().setSelection(new Set(segment ? [segment.id] : []))
+      if (!segment) return
+      event.currentTarget.setPointerCapture(event.pointerId)
+      drag = { id: segment.id, x: event.clientX, y: event.clientY, width: box.width, height: box.height, transform: segment.transform ?? NO_TRANSFORM, moved: false }
+    },
+    move(event: React.PointerEvent<HTMLDivElement>): void {
+      if (!drag) {
+        // Au survol, le curseur indique ce qu'on peut déplacer.
+        if (!useCanvas.getState().editing) event.currentTarget.style.cursor = pointIn(event).segment ? 'move' : ''
+        return
+      }
+      const dx = event.clientX - drag.x
+      const dy = event.clientY - drag.y
+      if (!drag.moved && Math.hypot(dx, dy) < 3) return
+      if (!drag.moved) beginFrameGesture()
+      drag.moved = true
+      setTransform(drag.id, { ...drag.transform, x: drag.transform.x + dx / drag.width, y: drag.transform.y + dy / drag.height })
+    },
+    up(): void {
+      drag = null
+    }
+  }
+})()
+
+/** Le morceau visible sous le point (x, y en fractions de l'image), en partant de la piste la plus haute. */
+function segmentAt(x: number, y: number, frameAspect: number): Segment | null {
+  for (const lane of videoLanes(useProject.getState().project)) {
+    const shown = onPreview.get(lane.id)
+    if (shown && contains(placement(shown.mediaAspect, frameAspect, shown.segment).visible, x, y)) return shown.segment
+  }
+  return null
 }
 
 /** Format de l'image : celui du premier clip de la piste vidéo la plus basse qui en a un, sinon 16:10 (l'écran d'un MacBook). */
@@ -68,6 +135,7 @@ function VideoLayers(): React.JSX.Element {
  * transparent et laisse voir ceux du dessous.
  */
 function LaneLayer({ laneId }: { laneId: string }): React.JSX.Element {
+  const layer = useRef<HTMLDivElement>(null)
   const first = useRef<HTMLVideoElement>(null)
   const second = useRef<HTMLVideoElement>(null)
   const still = useRef<HTMLImageElement>(null)
@@ -75,15 +143,20 @@ function LaneLayer({ laneId }: { laneId: string }): React.JSX.Element {
   useEffect(() => {
     let frame = 0
     const loop = (): void => {
-      if (first.current && second.current && still.current) sync(laneId, [first.current, second.current], still.current)
+      if (layer.current && first.current && second.current && still.current) {
+        sync(laneId, layer.current, [first.current, second.current], still.current)
+      }
       frame = requestAnimationFrame(loop)
     }
     frame = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      onPreview.delete(laneId)
+    }
   }, [laneId])
 
   return (
-    <div className={styles.layer}>
+    <div ref={layer} className={styles.layer}>
       <video ref={first} className={styles.video} muted playsInline preload="auto" />
       <video ref={second} className={styles.video} muted playsInline preload="auto" />
       <img ref={still} className={styles.video} alt="" draggable={false} />
@@ -91,11 +164,12 @@ function LaneLayer({ laneId }: { laneId: string }): React.JSX.Element {
   )
 }
 
-function sync(laneId: string, videos: HTMLVideoElement[], still: HTMLImageElement): void {
+function sync(laneId: string, layer: HTMLElement, videos: HTMLVideoElement[], still: HTMLImageElement): void {
   const time = player.time()
   const segments = player.laneSegments(laneId)
   const index = segments.findIndex((s) => time >= s.start && time < s.start + s.duration)
   const current = segments[index]
+  const frameAspect = layer.clientWidth / Math.max(1, layer.clientHeight)
 
   if (!current || current.image) {
     for (const video of videos) {
@@ -109,7 +183,10 @@ function sync(laneId: string, videos: HTMLVideoElement[], still: HTMLImageElemen
         still.src = url
       }
     }
-    show(still, Boolean(current) && still.complete)
+    const ready = Boolean(current) && still.complete && still.naturalWidth > 0
+    show(still, ready)
+    if (current && ready) place(laneId, still, current, still.naturalWidth / still.naturalHeight, frameAspect)
+    else onPreview.delete(laneId)
     preloadNext(segments[index + 1], current, time, videos)
     return
   }
@@ -124,6 +201,7 @@ function sync(laneId: string, videos: HTMLVideoElement[], still: HTMLImageElemen
   if (active.readyState >= 2) {
     show(active, true)
     show(other, false)
+    place(laneId, active, current, active.videoWidth / Math.max(1, active.videoHeight), frameAspect)
   }
 
   if (player.playing && usePlayback.getState().rate === 1) {
@@ -156,8 +234,45 @@ function load(video: HTMLVideoElement, url: string, time: number): void {
   video.currentTime = time
 }
 
+/** Place le média selon son cadrage (taille, position, rognage) ; ne touche au style que si quelque chose a changé. */
+function place(laneId: string, element: HTMLElement, segment: Segment, mediaAspect: number, frameAspect: number): void {
+  onPreview.set(laneId, { segment, mediaAspect })
+  const { full } = placement(mediaAspect, frameAspect, segment)
+  const crop = segment.crop ?? NO_CROP
+  const percent = (value: number): string => `${(value * 100).toFixed(3)}%`
+  const key = [full.x, full.y, full.width, full.height, crop.left, crop.top, crop.right, crop.bottom].join(' ')
+  if (element.dataset.placement === key) return
+  element.dataset.placement = key
+  Object.assign(element.style, {
+    left: percent(full.x),
+    top: percent(full.y),
+    width: percent(full.width),
+    height: percent(full.height),
+    clipPath: `inset(${percent(crop.top)} ${percent(crop.right)} ${percent(crop.bottom)} ${percent(crop.left)})`
+  })
+}
+
 function show(element: HTMLElement, visible: boolean): void {
   element.dataset.visible = String(visible)
+}
+
+/** Sous l'image : les commandes de lecture, ou la barre de cadrage pendant qu'on redimensionne ou rogne. */
+function BottomBar(): React.JSX.Element {
+  const editing = useCanvas((s) => s.editing)
+  const exists = useProject((s) => Boolean(editing && s.project.segments.some((seg) => seg.id === editing.segmentId)))
+  return (
+    <div className={styles.bottom}>
+      <AnimatePresence mode="wait" initial={false}>
+        {editing && exists ? (
+          <FrameToolbar key="cadrage" segmentId={editing.segmentId} mode={editing.mode} />
+        ) : (
+          <motion.div key="lecture" className={styles.bottomInner} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6, transition: { duration: 0.12 } }} transition={fade}>
+            <Transport />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
 }
 
 function Transport(): React.JSX.Element {

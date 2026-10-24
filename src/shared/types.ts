@@ -65,6 +65,24 @@ export interface Segment {
   linkId: string | null
   /** Image fixe : `sourceStart` ne sert pas et la durée se règle librement. */
   image?: boolean
+  /** Taille et position dans l'image (morceaux vidéo et images). Absent : ajusté et centré. */
+  transform?: Transform
+  /** Rognage, en fractions du média de chaque côté. Absent : rien n'est rogné. */
+  crop?: Crop
+}
+
+/** `x`, `y` : décalage du centre en fractions de l'image ; `scale` : 1 = ajusté dans l'image sans déformation. */
+export interface Transform {
+  x: number
+  y: number
+  scale: number
+}
+
+export interface Crop {
+  left: number
+  top: number
+  right: number
+  bottom: number
 }
 
 /**

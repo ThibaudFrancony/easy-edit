@@ -1,0 +1,140 @@
+.outlineArea {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.outline {
+  position: absolute;
+  outline: 1px solid var(--accent);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  cursor: default;
+}
+
+/* Le média entier, en pointillés, pendant qu'on le rogne. */
+.full {
+  position: absolute;
+  outline: 1px dashed #ffffff66;
+  pointer-events: none;
+}
+
+.box {
+  position: absolute;
+  outline: 1.5px solid var(--accent);
+  cursor: move;
+  touch-action: none;
+}
+
+.handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 2px;
+  background: var(--text);
+  box-shadow: 0 0 0 1px #00000080;
+  touch-action: none;
+}
+
+.handle[data-handle='nw'] { left: 0; top: 0; cursor: nwse-resize; }
+.handle[data-handle='ne'] { left: 100%; top: 0; cursor: nesw-resize; }
+.handle[data-handle='sw'] { left: 0; top: 100%; cursor: nesw-resize; }
+.handle[data-handle='se'] { left: 100%; top: 100%; cursor: nwse-resize; }
+.handle[data-handle='n'] { left: 50%; top: 0; cursor: ns-resize; }
+.handle[data-handle='s'] { left: 50%; top: 100%; cursor: ns-resize; }
+.handle[data-handle='w'] { left: 0; top: 50%; cursor: ew-resize; }
+.handle[data-handle='e'] { left: 100%; top: 50%; cursor: ew-resize; }
+
+/* En rognage, les poignées des bords sont des barres, pour se distinguer des coins. */
+.box[data-mode='crop'] .handle[data-handle='n'],
+.box[data-mode='crop'] .handle[data-handle='s'] {
+  width: 22px;
+  height: 6px;
+  margin: -3px 0 0 -11px;
+}
+
+.box[data-mode='crop'] .handle[data-handle='e'],
+.box[data-mode='crop'] .handle[data-handle='w'] {
+  width: 6px;
+  height: 22px;
+  margin: -11px 0 0 -3px;
+}
+
+.toolbar {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 9px;
+  background: #14161bf2;
+  border: 1px solid var(--control-strong);
+  white-space: nowrap;
+}
+
+.segmented {
+  display: flex;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--lane);
+}
+
+.segment {
+  position: relative;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 5px;
+  color: var(--text-2);
+  font-size: 12px;
+  transition: color 0.2s;
+}
+
+.segment[aria-checked='true'] {
+  color: var(--text);
+}
+
+.highlight {
+  position: absolute;
+  inset: 0;
+  border-radius: 5px;
+  background: var(--control-strong);
+}
+
+.label {
+  position: relative;
+}
+
+.button,
+.primary {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 500;
+  transition: background 0.2s, color 0.2s, filter 0.2s;
+}
+
+.button {
+  color: var(--text-2);
+}
+
+.button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+
+.primary:hover {
+  filter: brightness(1.08);
+}

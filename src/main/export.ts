@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { ExportQuality, Project } from '@shared/types'
 import { projectDuration, segmentsIn, videoLanes } from '@shared/project'
+import { NO_CROP, placement } from '@shared/geometry'
 import { audioTrackFile, clipDetails } from './media'
 
 // Construit la commande FFmpeg qui calcule le montage final : l'image (pistes vidéo superposées, la plus haute
@@ -65,17 +66,28 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
       const index = segment.image
         ? addImageInput(segment.source, segment.duration)
         : addInput(segment.source, segment.sourceStart, segment.duration)
+      // Même placement que l'aperçu : on rogne le média, puis on pose seulement la partie visible.
+      // Le reste de l'image reste transparent et laisse voir les couches du dessous.
+      const media = await clipDetails(segment.source)
+      const mediaAspect = media.width > 0 && media.height > 0 ? media.width / media.height : width / height
+      const { visible } = placement(mediaAspect, width / height, segment)
+      const crop = segment.crop ?? NO_CROP
+      const partWidth = even(visible.width * width)
+      const partHeight = even(visible.height * height)
+      const x = Math.round(visible.x * width)
+      const y = Math.round(visible.y * height)
       const layer = `s${layers++}`
-      // Le fond transparent de l'image réduite laisse voir les couches du dessous.
       graph.push(
-        `[${index}:v:0]fps=${FPS},scale=${width}:${height}:force_original_aspect_ratio=decrease,format=yuva420p,` +
-          `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,trim=duration=${seconds(segment.duration)},` +
+        `[${index}:v:0]fps=${FPS},` +
+          `crop=iw*${(1 - crop.left - crop.right).toFixed(6)}:ih*${(1 - crop.top - crop.bottom).toFixed(6)}:` +
+          `iw*${crop.left.toFixed(6)}:ih*${crop.top.toFixed(6)},` +
+          `scale=${partWidth}:${partHeight},format=yuva420p,setsar=1,trim=duration=${seconds(segment.duration)},` +
           `setpts=PTS-STARTPTS+${seconds(segment.start)}/TB[${layer}]`
       )
       const end = segment.start + segment.duration
       const next = `base${layers}`
       graph.push(
-        `[${base}][${layer}]overlay=eof_action=pass:enable='between(t,${seconds(segment.start)},${seconds(end)})'[${next}]`
+        `[${base}][${layer}]overlay=x=${x}:y=${y}:eof_action=pass:enable='between(t,${seconds(segment.start)},${seconds(end)})'[${next}]`
       )
       base = next
     }

@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
+import { isTransformed } from '@shared/geometry'
+import { editFrame, resetFrame, useCanvas } from '@/state/canvas'
 import { deleteSelection, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
@@ -7,44 +9,57 @@ import { quick } from '@/lib/motion'
 import { Icon, type IconName } from '../Icon'
 import styles from './ContextMenu.module.css'
 
-export interface MenuPosition {
-  x: number
-  y: number
-}
-
 interface Item {
   label: string
-  shortcut: string
+  shortcut?: string
   icon: IconName
   run(): void
+  /** Trait de séparation avant cette entrée. */
+  separated?: boolean
 }
 
-/** Menu du clic droit sur un morceau : il agit sur la sélection, comme le menu Montage. */
-export function ContextMenu({ position, onClose }: { position: MenuPosition | null; onClose(): void }): React.JSX.Element {
+/**
+ * Menu du clic droit, sur un morceau de la timeline ou sur l'aperçu. Couper, lier et supprimer agissent sur la
+ * sélection ; redimensionner et rogner sur le morceau visé (vidéo ou image).
+ */
+export function ContextMenu(): React.JSX.Element {
+  const menu = useCanvas((s) => s.menu)
+  const close = useCanvas((s) => s.closeMenu)
   const linked = useTimeline((s) => useProject.getState().project.segments.some((seg) => s.selection.has(seg.id) && seg.linkId))
+  const target = useProject((s) => (menu?.segmentId ? s.project.segments.find((seg) => seg.id === menu.segmentId) : undefined))
+  const framable = useProject((s) => (target ? s.project.lanes.find((l) => l.id === target.laneId)?.kind === 'video' : false))
 
   useEffect(() => {
-    if (!position) return
-    const close = (event: Event): void => {
+    if (!menu) return
+    const onEvent = (event: Event): void => {
       if (event instanceof KeyboardEvent && event.key !== 'Escape') return
-      onClose()
+      close()
     }
-    window.addEventListener('pointerdown', close)
-    window.addEventListener('keydown', close)
-    window.addEventListener('blur', close)
+    window.addEventListener('pointerdown', onEvent)
+    window.addEventListener('keydown', onEvent)
+    window.addEventListener('blur', onEvent)
     return () => {
-      window.removeEventListener('pointerdown', close)
-      window.removeEventListener('keydown', close)
-      window.removeEventListener('blur', close)
+      window.removeEventListener('pointerdown', onEvent)
+      window.removeEventListener('keydown', onEvent)
+      window.removeEventListener('blur', onEvent)
     }
-  }, [position, onClose])
+  }, [menu, close])
 
-  const items: Item[] = [
-    { label: 'Couper au curseur', shortcut: 'S', icon: 'scissors', run: splitAtPlayhead },
+  const items: Item[] = []
+  if (target && framable) {
+    items.push(
+      { label: 'Redimensionner', icon: 'resize', run: () => editFrame(target.id, 'resize') },
+      { label: 'Rogner', icon: 'crop', run: () => editFrame(target.id, 'crop') }
+    )
+    if (isTransformed(target)) items.push({ label: 'Réinitialiser le cadrage', icon: 'reset', run: () => resetFrame(target.id) })
+  }
+  items.push(
+    { label: 'Couper au curseur', shortcut: 'S', icon: 'scissors', run: splitAtPlayhead, separated: items.length > 0 },
     { label: linked ? 'Délier' : 'Lier', shortcut: '⌘L', icon: linked ? 'unlink' : 'link', run: toggleLinkSelection },
     { label: 'Supprimer', shortcut: '⌫', icon: 'trash', run: () => deleteSelection(false) },
     { label: 'Supprimer et refermer', shortcut: '⇧⌫', icon: 'trash', run: () => deleteSelection(true) }
-  ]
+  )
+  const position = menu
 
   return (
     <AnimatePresence>
@@ -64,14 +79,15 @@ export function ContextMenu({ position, onClose }: { position: MenuPosition | nu
               key={item.label}
               role="menuitem"
               className={styles.item}
+              data-separated={item.separated ?? false}
               onClick={() => {
                 item.run()
-                onClose()
+                close()
               }}
             >
               <Icon name={item.icon} size={14} />
               <span className={styles.label}>{item.label}</span>
-              <span className={styles.shortcut}>{item.shortcut}</span>
+              {item.shortcut && <span className={styles.shortcut}>{item.shortcut}</span>}
             </button>
           ))}
         </motion.div>

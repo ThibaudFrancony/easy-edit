@@ -22,7 +22,7 @@ interface SegmentViewProps {
   segment: Segment
   lane: Lane
   pps: number
-  onContextMenu(x: number, y: number): void
+  onContextMenu(x: number, y: number, segmentId: string): void
 }
 
 export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewProps): React.JSX.Element {
@@ -54,7 +54,7 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
         event.stopPropagation()
         const { selection, setSelection } = useTimeline.getState()
         if (!selection.has(segment.id)) setSelection(withLinked(useProject.getState().project, [segment.id]))
-        onContextMenu(event.clientX, event.clientY)
+        onContextMenu(event.clientX, event.clientY, segment.id)
       }}
     >
       {kind === 'video' ? (

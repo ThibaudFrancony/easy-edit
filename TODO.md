@@ -60,6 +60,14 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - [x] Images (png, jpg, webp, bmp, tiff) : importées dans la bibliothèque (glisser ou +, copiées dans `~/Movies/Easy Edit/Images`), posées sur une piste vidéo pour 5 s, durée réglée en tirant leurs bords. La transparence d'un png laisse voir les pistes du dessous.
 - [x] Un clip ou une image va sur la piste vidéo visée au dépôt (sinon la plus basse) ; un son sur la bande son visée.
 
+## Lot 6 : cadrage ✓
+
+- [x] Bibliothèque classée : Vidéos, puis Images, puis Sons (une catégorie vide n'apparaît pas).
+- [x] Clic droit sur un morceau vidéo ou une image, dans la timeline ou sur l'aperçu : « Redimensionner », « Rogner », « Réinitialiser le cadrage ». Sur l'aperçu, c'est la piste visible sous le pointeur qui est visée (la plus haute d'abord ; une partie rognée laisse passer le clic vers la piste du dessous).
+- [x] Redimensionner : déplacer la boîte, agrandir ou réduire par les coins autour du centre. Rogner : tirer les bords ou les coins ; glisser l'intérieur déplace la fenêtre de rognage. La barre « Redimensionner · Rogner · Réinitialiser · Terminé » remplace les commandes de lecture le temps du cadrage ; Échap, Terminé ou un clic à côté pour finir.
+- [x] Clic sur l'aperçu : sélectionne ce qui est visible sous le pointeur (contour orange) ; glisser le déplace directement.
+- [x] Chaque geste est une étape d'annulation. L'export applique la même taille, la même position et le même rognage que l'aperçu.
+
 ## Plus tard
 
 - Réordonner les pistes en les glissant.

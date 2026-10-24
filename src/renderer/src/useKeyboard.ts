@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { projectDuration } from '@shared/project'
 import { player, usePlayback } from '@/engine/player'
 import { deleteSelection, selectAll, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
+import { useCanvas } from '@/state/canvas'
 import { useExport } from '@/state/export'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
@@ -44,6 +45,7 @@ export function useKeyboard(): void {
             Home: () => player.seek(0),
             End: () => player.seek(usePlayback.getState().duration),
             Escape: () => {
+              if (useCanvas.getState().editing) return useCanvas.getState().stopEditing()
               useTimeline.getState().setSelection(new Set())
               useTimeline.getState().inspect(null)
             }

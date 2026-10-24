@@ -8,9 +8,9 @@ import { useProject } from '@/state/project'
 import { LEADING_INSET, MAX_ZOOM, MIN_ZOOM, timeToX, useTimeline, xToTime } from '@/state/timeline'
 import { fade, quick, standard } from '@/lib/motion'
 import { addEmptyLane, normalizeLanes, placeFiles } from '@/state/editing'
+import { useCanvas } from '@/state/canvas'
 import { CLIP_DRAG_TYPE, droppedMediaPaths } from '../Library'
 import { Icon } from '../Icon'
-import { ContextMenu, type MenuPosition } from './ContextMenu'
 import { Ruler } from './Ruler'
 import { SNAP_DISTANCE, SegmentView } from './SegmentView'
 import styles from './Timeline.module.css'
@@ -31,7 +31,6 @@ export function Timeline(): React.JSX.Element {
   const scrollRef = useRef<HTMLDivElement>(null)
   const rowsRef = useRef<HTMLDivElement>(null)
   const [ghost, setGhost] = useState<Ghost | null>(null)
-  const [menu, setMenu] = useState<MenuPosition | null>(null)
   /** Fichiers audio glissés depuis le Finder : l'instant où ils seront posés. */
   const [fileDrop, setFileDrop] = useState<number | null>(null)
   const inspected = useTimeline((s) => s.inspectedLane)
@@ -180,7 +179,7 @@ export function Timeline(): React.JSX.Element {
                     exit={{ opacity: 0 }}
                     transition={standard}
                   >
-                    <LaneSegments project={project} lane={lane} pps={pps} onContextMenu={(x, y) => setMenu({ x, y })} />
+                    <LaneSegments project={project} lane={lane} pps={pps} onContextMenu={(x, y, segmentId) => useCanvas.getState().openMenu(x, y, segmentId)} />
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -205,7 +204,6 @@ export function Timeline(): React.JSX.Element {
 
         <Playhead />
       </div>
-      <ContextMenu position={menu} onClose={() => setMenu(null)} />
     </section>
   )
 }
@@ -221,7 +219,7 @@ function snap(start: number, duration: number, times: number[], threshold: numbe
   return { start: Math.max(0, start + (best?.delta ?? 0)), duration, snapAt: best?.at ?? null }
 }
 
-function LaneSegments({ project, lane, pps, onContextMenu }: { project: Project; lane: Lane; pps: number; onContextMenu(x: number, y: number): void }): React.JSX.Element {
+function LaneSegments({ project, lane, pps, onContextMenu }: { project: Project; lane: Lane; pps: number; onContextMenu(x: number, y: number, segmentId: string): void }): React.JSX.Element {
   return (
     <AnimatePresence initial={false}>
       {segmentsIn(project, lane.id).map((segment) => (

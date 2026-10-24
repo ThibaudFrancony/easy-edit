@@ -23,6 +23,21 @@
   transition: background 0.15s, color 0.15s;
 }
 
+.item[data-separated='true'] {
+  margin-top: 5px;
+  position: relative;
+}
+
+.item[data-separated='true']::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: -3px;
+  height: 1px;
+  background: var(--line);
+}
+
 .item:hover {
   background: var(--selected);
   color: var(--text);

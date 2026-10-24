@@ -9,6 +9,7 @@ import { useTimeline } from '@/state/timeline'
 import { fileName } from '@/lib/format'
 import { useExport } from '@/state/export'
 import { ExportPanel } from './components/ExportPanel'
+import { ContextMenu } from './components/timeline/ContextMenu'
 import { Icon } from './components/Icon'
 import { Inspector } from './components/Inspector'
 import { Library } from './components/Library'
@@ -48,6 +49,7 @@ export function App(): React.JSX.Element {
       </div>
       <Timeline />
       <ExportPanel />
+      <ContextMenu />
     </div>
   )
 }

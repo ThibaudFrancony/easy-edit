@@ -12,6 +12,13 @@ export const CLIP_DRAG_TYPE = 'application/x-easyedit-clip'
 
 const IMPORTABLE = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg|png|jpe?g|webp|bmp|tiff?)$/i
 
+/** Ordre d'affichage des sections ; une section sans fichier n'apparaît pas. */
+const SECTIONS: { kind: LibraryFile['kind']; title: string }[] = [
+  { kind: 'video', title: 'Vidéos' },
+  { kind: 'image', title: 'Images' },
+  { kind: 'audio', title: 'Sons' }
+]
+
 /** Sons et images glissés depuis le Finder (les autres fichiers sont ignorés). */
 export function droppedMediaPaths(event: React.DragEvent): string[] {
   return [...event.dataTransfer.files].map((file) => window.api.pathForFile(file)).filter((path) => IMPORTABLE.test(path))
@@ -22,6 +29,9 @@ export function Library(): React.JSX.Element {
   const loaded = useLibrary((s) => s.loaded)
   const importFiles = useLibrary((s) => s.importFiles)
   const [dropping, setDropping] = useState(false)
+  const sections = SECTIONS.map((section) => ({ ...section, files: files.filter((file) => file.kind === section.kind) })).filter(
+    (section) => section.files.length > 0
+  )
 
   return (
     <aside
@@ -63,10 +73,19 @@ export function Library(): React.JSX.Element {
             </button>
           </motion.div>
         ) : (
-          <motion.div key="grid" className={styles.grid} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fade}>
+          <motion.div key="grid" className={styles.sections} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fade}>
             <AnimatePresence>
-              {files.map((file, index) => (
-                <FileCard key={file.path} file={file} index={index} />
+              {sections.map((section) => (
+                <motion.section key={section.kind} className={styles.section} layout {...rise} transition={standard}>
+                  <h3 className={styles.heading}>{section.title}</h3>
+                  <div className={styles.grid}>
+                    <AnimatePresence>
+                      {section.files.map((file, index) => (
+                        <FileCard key={file.path} file={file} index={index} />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </motion.section>
               ))}
             </AnimatePresence>
           </motion.div>

@@ -87,6 +87,7 @@ scripts/icon.mjs   génère l'icône à partir du SVG
 ```
 
 - Toute modification du montage passe par `useProject.getState().update(draft => …)` : elle est annulable (⌘Z) et enregistrée automatiquement. Les actions de montage (couper, supprimer, lier…) sont dans `state/editing.ts` ; la sélection et le glissé en cours dans `state/timeline.ts`.
+- Le cadrage d'un morceau (`transform`, `crop`) se calcule dans `src/shared/geometry.ts` (`placement`), en fractions de l'image : la même fonction sert à l'aperçu (en %) et à l'export (en pixels). L'édition sur l'aperçu est dans `state/canvas.ts` et `components/FrameEditor.tsx`.
 - Les opérations sur un projet (`insertClip`, `splitAt`, `moveSegments`, `removeSegments`, `toggleLink`…) sont des fonctions pures dans `src/shared/project.ts`.
 - Tous les raccourcis sont gérés dans `useKeyboard.ts`. Ceux du menu y sont affichés avec `registerAccelerator: false`, pour que S, ⌫ ou ⌘Z gardent leur rôle normal dans un champ de texte ; cliquer l'entrée de menu envoie une `MenuAction`.
 - Les modifications successives d'un même réglage (un curseur qu'on glisse) passent un `mergeKey` à `update` : une seule étape d'annulation.
@@ -124,7 +125,8 @@ Fait :
 - lot 2 : sélection, déplacement, coupe, suppression, liaison, annuler, formes d'onde ;
 - lot 3 : inspecteur de piste, volume jusqu'à 200 %, fonds sonores, normalisation ;
 - lot 4 : export .mp4 ;
-- lot 5 : plusieurs pistes vidéo superposées, images à durée réglable.
+- lot 5 : plusieurs pistes vidéo superposées, images à durée réglable ;
+- lot 6 : bibliothèque par catégories, cadrage (redimensionner, rogner, déplacer sur l'aperçu).
 
 La suite, et les décisions d'UI et d'UX déjà prises, sont dans [TODO.md](TODO.md). On avance lot par lot et on coche au fur et à mesure.
 
