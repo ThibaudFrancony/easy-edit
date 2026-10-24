@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
 import type { Lane, Segment } from '@shared/types'
-import { snapTimes, withLinked } from '@shared/project'
+import { MIN_SEGMENT, snapTimes, withLinked } from '@shared/project'
 import { player } from '@/engine/player'
-import { commitDrag } from '@/state/editing'
+import { commitDrag, commitTrim } from '@/state/editing'
 import { thumbnailURL, useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { isInstantLayout, timeToX, useTimeline } from '@/state/timeline'
@@ -30,8 +30,10 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
   const selected = useTimeline((s) => s.selection.has(segment.id))
   const delta = useTimeline((s) => (s.drag?.ids.has(segment.id) ? s.drag.delta : 0))
   const dragging = useTimeline((s) => s.drag?.ids.has(segment.id) ?? false)
-  const left = timeToX(segment.start + delta, pps) + 1
-  const width = Math.max(2, segment.duration * pps - 2)
+  const trim = useTimeline((s) => (s.trim?.id === segment.id ? s.trim : null))
+  const shown = trimmed(segment, trim?.edge, trim?.delta ?? 0)
+  const left = timeToX(shown.start + delta, pps) + 1
+  const width = Math.max(2, shown.duration * pps - 2)
   const pointer = usePointerDrag(segment, pps)
 
   return (
@@ -39,11 +41,11 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
       className={`${styles.segment} ${kind === 'video' ? styles.video : lane.music ? styles.music : styles.audio}`}
       data-muted={lane.muted}
       data-selected={selected}
-      data-dragging={dragging}
+      data-dragging={dragging || trim !== null}
       initial={{ opacity: 0, x: 6 }}
       animate={{ opacity: 1, x: 0, left, width }}
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.18 } }}
-      transition={dragging || isInstantLayout() ? { duration: 0 } : standard}
+      transition={dragging || trim || isInstantLayout() ? { duration: 0 } : standard}
       onPointerDown={pointer.onPointerDown}
       onPointerMove={pointer.onPointerMove}
       onPointerUp={pointer.onPointerUp}
@@ -56,7 +58,16 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
       }}
     >
       {kind === 'video' ? (
-        <VideoContent segment={segment} />
+        <>
+          <VideoContent segment={segment} />
+          {/* Une image se règle en tirant ses bords : sa durée est libre. */}
+          {segment.image && (
+            <>
+              <TrimHandle segment={segment} edge="start" pps={pps} />
+              <TrimHandle segment={segment} edge="end" pps={pps} />
+            </>
+          )}
+        </>
       ) : (
         <>
           <Waveform
@@ -93,8 +104,8 @@ function VideoContent({ segment }: { segment: Segment }): React.JSX.Element {
   return (
     <>
       <div className={styles.label}>
-        <Icon name={segment.linkId ? 'link' : 'unlink'} size={11} />
-        {created ? clipTime(created) : fileName(segment.source)}
+        {segment.image ? <Icon name="image" size={11} /> : <Icon name={segment.linkId ? 'link' : 'unlink'} size={11} />}
+        {segment.image || !created ? fileName(segment.source) : clipTime(created)}
       </div>
       <motion.div
         className={styles.filmstrip}
@@ -104,6 +115,53 @@ function VideoContent({ segment }: { segment: Segment }): React.JSX.Element {
         transition={fade}
       />
     </>
+  )
+}
+
+/** Le morceau tel qu'il serait après un rognage de `delta` sur le bord `edge` (mêmes limites que `trimSegment`). */
+function trimmed(segment: Segment, edge: 'start' | 'end' | undefined, delta: number): { start: number; duration: number } {
+  if (!edge || delta === 0) return segment
+  const end = segment.start + segment.duration
+  if (edge === 'end') return { start: segment.start, duration: Math.max(MIN_SEGMENT, segment.duration + delta) }
+  const start = Math.min(end - MIN_SEGMENT, Math.max(0, segment.start + delta))
+  return { start, duration: end - start }
+}
+
+/** Poignée d'un bord : on la tire pour allonger ou raccourcir le morceau, avec aimantation. */
+function TrimHandle({ segment, edge, pps }: { segment: Segment; edge: 'start' | 'end'; pps: number }): React.JSX.Element {
+  const origin = useRef<{ x: number; snaps: number[] } | null>(null)
+
+  return (
+    <div
+      className={styles.trimHandle}
+      data-edge={edge}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return
+        event.stopPropagation()
+        event.currentTarget.setPointerCapture(event.pointerId)
+        const project = useProject.getState().project
+        origin.current = { x: event.clientX, snaps: [...snapTimes(project, new Set([segment.id])), player.time()] }
+        useTimeline.getState().setSelection(new Set([segment.id]))
+      }}
+      onPointerMove={(event) => {
+        const start = origin.current
+        if (!start) return
+        const raw = (event.clientX - start.x) / pps
+        const edgeTime = (edge === 'start' ? segment.start : segment.start + segment.duration) + raw
+        let best: { shift: number; at: number } | null = null
+        for (const time of start.snaps) {
+          const shift = time - edgeTime
+          if (Math.abs(shift) < SNAP_DISTANCE / pps && (!best || Math.abs(shift) < Math.abs(best.shift))) best = { shift, at: time }
+        }
+        useTimeline.getState().setTrim({
+          id: segment.id, edge, delta: raw + (best?.shift ?? 0), snapAt: best ? best.at : null, sourceDuration: Infinity
+        })
+      }}
+      onPointerUp={() => {
+        origin.current = null
+        commitTrim()
+      }}
+    />
   )
 }
 

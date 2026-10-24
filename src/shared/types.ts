@@ -1,10 +1,10 @@
 // Types partagés entre le processus principal (Node) et l'interface (React).
 // Tous les temps sont en secondes.
 
-/** Un fichier de la bibliothèque : un clip vidéo (dossier des clips) ou un son importé (bande son). */
+/** Un fichier de la bibliothèque : un clip vidéo (dossier des clips), un son ou une image importés. */
 export interface LibraryFile {
   path: string
-  kind: 'video' | 'audio'
+  kind: 'video' | 'audio' | 'image'
   createdAt: number
   modifiedAt: number
   size: number
@@ -23,7 +23,10 @@ export interface AudioTrackInfo {
 /** Ce que FFmpeg et l'en-tête MP4 nous apprennent d'un clip. */
 export interface ClipDetails {
   path: string
+  /** Pour une image : la durée proposée quand on la pose sur la timeline. */
   duration: number
+  /** Image fixe (png, jpg…) : un seul « flux » vidéo, sans son, de durée libre. */
+  image?: boolean
   width: number
   height: number
   /** Index du flux vidéo, null pour un fichier sans image. */
@@ -60,9 +63,15 @@ export interface Segment {
   start: number
   /** Les morceaux qui partagent un `linkId` bougent, se coupent et se suppriment ensemble. */
   linkId: string | null
+  /** Image fixe : `sourceStart` ne sert pas et la durée se règle librement. */
+  image?: boolean
 }
 
-/** Un montage. Il ne contient que des références aux clips d'origine : les sources ne sont jamais réécrites. */
+/**
+ * Un montage. Il ne contient que des références aux clips d'origine : les sources ne sont jamais réécrites.
+ * L'ordre de `lanes` est l'ordre d'affichage, de haut en bas : les pistes vidéo d'abord, et la plus haute
+ * passe par-dessus les autres dans l'image.
+ */
 export interface Project {
   version: 1
   lanes: Lane[]
@@ -114,10 +123,10 @@ export interface EasyEditAPI {
   thumbnail(path: string): Promise<string>
   /** URL `media://` d'une piste audio extraite du clip, gardée en cache. */
   audioTrack(path: string, stream: number): Promise<string>
-  /** Copie des sons dans la bibliothèque ; renvoie leurs nouveaux chemins (les fichiers non audio sont ignorés). */
-  importSounds(paths: string[]): Promise<string[]>
-  /** Fenêtre de choix de sons, importés dans la bibliothèque ; renvoie leurs nouveaux chemins. */
-  pickSounds(): Promise<string[]>
+  /** Copie des sons et des images dans la bibliothèque ; renvoie leurs nouveaux chemins (les autres fichiers sont ignorés). */
+  importFiles(paths: string[]): Promise<string[]>
+  /** Fenêtre de choix de sons et d'images, importés dans la bibliothèque ; renvoie leurs nouveaux chemins. */
+  pickFiles(): Promise<string[]>
   /** Chemin d'un fichier glissé depuis le Finder. */
   pathForFile(file: File): string
   /** URL `media://` pour lire directement un fichier. */

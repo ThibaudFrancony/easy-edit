@@ -17,6 +17,16 @@ export interface DragState {
   snapAt: number | null
 }
 
+/** Bord d'un morceau en train d'être tiré à la souris : affiché décalé de `delta` jusqu'au lâcher. */
+export interface TrimState {
+  id: string
+  edge: 'start' | 'end'
+  delta: number
+  snapAt: number | null
+  /** Durée de la source (l'infini pour une image) : on ne peut pas allonger un clip au-delà. */
+  sourceDuration: number
+}
+
 interface TimelineState {
   /** Zoom : largeur d'une seconde, en px. */
   pixelsPerSecond: number
@@ -26,11 +36,13 @@ interface TimelineState {
   scrollRequest: ScrollRequest | null
   selection: Set<string>
   drag: DragState | null
+  trim: TrimState | null
   /** La piste dont les réglages sont ouverts dans l'inspecteur. */
   inspectedLane: string | null
   setSelection(selection: Set<string>): void
   inspect(laneId: string | null): void
   setDrag(drag: DragState | null): void
+  setTrim(trim: TrimState | null): void
   setViewport(scrollLeft: number, viewportWidth: number): void
   /** Change le zoom en gardant `anchorTime` au même endroit à l'écran. */
   zoomTo(pixelsPerSecond: number, anchorTime: number): void
@@ -48,10 +60,12 @@ export const useTimeline = create<TimelineState>()((set, get) => ({
   scrollRequest: null,
   selection: new Set(),
   drag: null,
+  trim: null,
   inspectedLane: null,
   setSelection: (selection) => set({ selection }),
   inspect: (inspectedLane) => set({ inspectedLane }),
   setDrag: (drag) => set({ drag }),
+  setTrim: (trim) => set({ trim }),
   setViewport: (scrollLeft, viewportWidth) => set({ scrollLeft, viewportWidth }),
   zoomTo: (target, anchorTime) => {
     instantLayout()

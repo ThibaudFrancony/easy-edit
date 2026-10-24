@@ -111,15 +111,23 @@
   flex-shrink: 0;
 }
 
-.addLane {
-  height: 30px;
+.addLanes {
   flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.addLane {
+  height: 28px;
   border-radius: 6px;
   border: 1px dashed var(--control-strong);
   color: var(--text-3);
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
 
@@ -352,4 +360,47 @@
   height: 12px;
   border-radius: 6px;
   background: var(--text);
+}
+
+/* Bords d'une image : zones de 8 px qu'on tire pour régler sa durée. */
+.trimHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  z-index: 3;
+  cursor: ew-resize;
+}
+
+.trimHandle[data-edge='start'] {
+  left: 0;
+}
+
+.trimHandle[data-edge='end'] {
+  right: 0;
+}
+
+.trimHandle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 2px;
+  height: 18px;
+  margin-top: -9px;
+  border-radius: 1px;
+  background: var(--video-ink);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.trimHandle[data-edge='start']::after {
+  left: 3px;
+}
+
+.trimHandle[data-edge='end']::after {
+  right: 3px;
+}
+
+.segment:hover .trimHandle::after {
+  opacity: 0.7;
 }

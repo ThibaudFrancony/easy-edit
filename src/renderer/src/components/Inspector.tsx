@@ -13,7 +13,7 @@ export const INSPECTOR_WIDTH = 300
 /** Réglages de la piste choisie dans la timeline. Glisse depuis la droite, se referme quand on clique dans le vide. */
 export function Inspector(): React.JSX.Element {
   const laneId = useTimeline((s) => s.inspectedLane)
-  const lane = useProject((s) => s.project.lanes.find((l) => l.id === laneId && l.kind === 'audio'))
+  const lane = useProject((s) => s.project.lanes.find((l) => l.id === laneId))
 
   return (
     <AnimatePresence initial={false}>
@@ -45,16 +45,38 @@ export function Inspector(): React.JSX.Element {
 
 function LaneSettings({ lane }: { lane: Lane }): React.JSX.Element {
   const percent = Math.round(lane.volume * 100)
+  // On garde toujours au moins une piste vidéo.
+  const videoLaneCount = useProject((s) => s.project.lanes.filter((l) => l.kind === 'video').length)
+  const video = lane.kind === 'video'
+  const editable = lane.music || video
 
   return (
     <>
       <div className={styles.header}>
-        <span className={styles.dot} data-music={lane.music ?? false} />
-        {lane.music ? <LaneName lane={lane} /> : <span className={styles.name}>{lane.name}</span>}
+        <span className={styles.dot} data-kind={video ? 'video' : lane.music ? 'music' : 'audio'} />
+        {editable ? <LaneName lane={lane} /> : <span className={styles.name}>{lane.name}</span>}
         <button className="icon-button" aria-label="Fermer" onClick={() => useTimeline.getState().inspect(null)}>
           <Icon name="close" size={14} />
         </button>
       </div>
+
+      {video ? (
+        videoLaneCount > 1 && (
+          <button className={styles.delete} onClick={() => deleteLane(lane.id)}>
+            <Icon name="trash" size={14} />
+            Supprimer la piste
+          </button>
+        )
+      ) : (
+        <AudioSettings lane={lane} percent={percent} />
+      )}
+    </>
+  )
+}
+
+function AudioSettings({ lane, percent }: { lane: Lane; percent: number }): React.JSX.Element {
+  return (
+    <>
 
       <div className={styles.volume}>
         <div className={styles.volumeRow}>

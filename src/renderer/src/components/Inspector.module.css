@@ -29,8 +29,12 @@
   background: var(--audio-wave);
 }
 
-.dot[data-music='true'] {
+.dot[data-kind='music'] {
   background: var(--music-wave);
+}
+
+.dot[data-kind='video'] {
+  background: var(--video-ink);
 }
 
 .name,

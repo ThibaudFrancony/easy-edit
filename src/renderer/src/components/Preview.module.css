@@ -24,6 +24,11 @@
   background: #000;
 }
 
+.layer {
+  position: absolute;
+  inset: 0;
+}
+
 .video {
   position: absolute;
   inset: 0;

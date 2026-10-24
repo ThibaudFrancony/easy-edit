@@ -38,9 +38,9 @@ class Player {
     return this.rate !== 0
   }
 
-  get videoSegments(): Segment[] {
-    const video = this.project.lanes.find((l) => l.kind === 'video')
-    return video ? this.project.segments.filter((s) => s.laneId === video.id).sort((a, b) => a.start - b.start) : []
+  /** Les morceaux d'une piste, dans l'ordre du temps (lus à chaque image par l'aperçu). */
+  laneSegments(laneId: string): Segment[] {
+    return this.project.segments.filter((s) => s.laneId === laneId).sort((a, b) => a.start - b.start)
   }
 
   setProject(project: Project): void {

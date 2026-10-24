@@ -10,21 +10,17 @@ import styles from './Library.module.css'
 
 export const CLIP_DRAG_TYPE = 'application/x-easyedit-clip'
 
-const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg)$/i
+const IMPORTABLE = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg|png|jpe?g|webp|bmp|tiff?)$/i
 
-export function isAudioFile(path: string): boolean {
-  return AUDIO_EXTENSIONS.test(path)
-}
-
-/** Sons glissés depuis le Finder (fichiers non audio ignorés). */
-export function droppedAudioPaths(event: React.DragEvent): string[] {
-  return [...event.dataTransfer.files].map((file) => window.api.pathForFile(file)).filter(isAudioFile)
+/** Sons et images glissés depuis le Finder (les autres fichiers sont ignorés). */
+export function droppedMediaPaths(event: React.DragEvent): string[] {
+  return [...event.dataTransfer.files].map((file) => window.api.pathForFile(file)).filter((path) => IMPORTABLE.test(path))
 }
 
 export function Library(): React.JSX.Element {
   const files = useLibrary((s) => s.files)
   const loaded = useLibrary((s) => s.loaded)
-  const importSounds = useLibrary((s) => s.importSounds)
+  const importFiles = useLibrary((s) => s.importFiles)
   const [dropping, setDropping] = useState(false)
 
   return (
@@ -43,13 +39,18 @@ export function Library(): React.JSX.Element {
       onDrop={(event) => {
         event.preventDefault()
         setDropping(false)
-        const paths = droppedAudioPaths(event)
-        if (paths.length > 0) void importSounds(paths)
+        const paths = droppedMediaPaths(event)
+        if (paths.length > 0) void importFiles(paths)
       }}
     >
       <div className={styles.header}>
         <span className={styles.title}>Fichiers</span>
-        <button className="icon-button" aria-label="Importer un son" title="Importer un son" onClick={() => void window.api.pickSounds().then(() => useLibrary.getState().refresh())}>
+        <button
+          className="icon-button"
+          aria-label="Importer un son ou une image"
+          title="Importer un son ou une image"
+          onClick={() => void window.api.pickFiles().then(() => useLibrary.getState().refresh())}
+        >
           <Icon name="plus" size={14} />
         </button>
       </div>
@@ -80,6 +81,7 @@ function FileCard({ file, index }: { file: LibraryFile; index: number }): React.
   const stream = useLibrary((s) => s.details[file.path]?.audioTracks[0]?.stream)
   const setDragged = useLibrary((s) => s.setDragged)
   const audio = file.kind === 'audio'
+  const image = file.kind === 'image'
 
   return (
     <motion.div layout {...rise} transition={{ ...standard, delay: Math.min(index, 12) * 0.03 }}>
@@ -99,13 +101,15 @@ function FileCard({ file, index }: { file: LibraryFile; index: number }): React.
             stream !== undefined && duration !== undefined ? (
               <Waveform source={file.path} stream={stream} sourceStart={0} duration={duration} color="var(--music-wave)" />
             ) : null
+          ) : image ? (
+            <img src={window.api.mediaURL(file.path)} alt="" draggable={false} />
           ) : (
             <Thumbnail path={file.path} />
           )}
-          {duration !== undefined && <span className={`${styles.badge} mono`}>{shortDuration(duration)}</span>}
+          {duration !== undefined && !image && <span className={`${styles.badge} mono`}>{shortDuration(duration)}</span>}
         </div>
         <span className={styles.name}>
-          {audio ? <span className={styles.fileName}>{fileName(file.path)}</span> : clipTime(file.createdAt)}
+          {audio || image ? <span className={styles.fileName}>{fileName(file.path)}</span> : clipTime(file.createdAt)}
           {file.path.toLowerCase().includes('compressé') && <span className={styles.tag}>compressé</span>}
         </span>
       </div>

@@ -9,8 +9,8 @@ interface LibraryState {
   /** Le fichier en train d'être glissé vers la timeline. */
   dragged: LibraryFile | null
   refresh(): Promise<void>
-  /** Copie des sons dans la bibliothèque, puis la relit. Renvoie les chemins des copies. */
-  importSounds(paths: string[]): Promise<string[]>
+  /** Copie des sons et des images dans la bibliothèque, puis la relit. Renvoie les chemins des copies. */
+  importFiles(paths: string[]): Promise<string[]>
   setDragged(file: LibraryFile | null): void
 }
 
@@ -26,8 +26,8 @@ export const useLibrary = create<LibraryState>()((set, get) => ({
     if (!same || !get().loaded) set({ files, loaded: true })
     await Promise.all(files.filter((f) => !get().details[f.path]).map((f) => clipDetails(f.path).catch(() => null)))
   },
-  importSounds: async (paths) => {
-    const imported = await window.api.importSounds(paths)
+  importFiles: async (paths) => {
+    const imported = await window.api.importFiles(paths)
     if (imported.length > 0) await get().refresh()
     return imported
   },

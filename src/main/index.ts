@@ -5,7 +5,7 @@ import type { ExportEvent, ExportRequest, MenuAction, OpenedProject } from '@sha
 import { emptyProject } from '@shared/project'
 import { buildExport, exportsFolder, freeExportPath } from './export'
 import { type RunningFFmpeg, runFFmpeg } from './ffmpeg-run'
-import { AUDIO_EXTENSIONS, audioTrack, clipDetails, clipsFolder, ffmpeg, importSounds, listFiles, thumbnail } from './media'
+import { AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, audioTrack, clipDetails, clipsFolder, ffmpeg, importFiles, listFiles, thumbnail } from './media'
 import {
   PROJECT_EXTENSION, loadInitialProject, newProjectPath, projectsFolder, readProject, rememberLastProject, writeProject
 } from './projects'
@@ -126,7 +126,7 @@ function buildMenu(): void {
 }
 
 ipcMain.handle('library:list', () => listFiles())
-ipcMain.handle('library:import', (_event, paths: string[]) => importSounds(paths))
+ipcMain.handle('library:import', (_event, paths: string[]) => importFiles(paths))
 ipcMain.handle('clips:details', (_event, path: string) => clipDetails(path))
 ipcMain.handle('clips:thumbnail', (_event, path: string) => thumbnail(path))
 ipcMain.handle('clips:audio-track', (_event, path: string, stream: number) => audioTrack(path, stream))
@@ -135,14 +135,14 @@ ipcMain.handle('project:save', (_event, opened: OpenedProject) => writeProject(o
 ipcMain.handle('project:new', () => newProject())
 ipcMain.handle('project:open', () => openProject())
 ipcMain.handle('reveal', (_event, path: string) => shell.showItemInFolder(path))
-ipcMain.handle('library:pick-sounds', async () => {
+ipcMain.handle('library:pick', async () => {
   const options = {
-    defaultPath: join(app.getPath('home'), 'Music'),
+    defaultPath: app.getPath('downloads'),
     properties: ['openFile' as const, 'multiSelections' as const],
-    filters: [{ name: 'Sons', extensions: AUDIO_EXTENSIONS }]
+    filters: [{ name: 'Sons et images', extensions: [...AUDIO_EXTENSIONS, ...IMAGE_EXTENSIONS] }]
   }
   const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
-  return result.canceled ? [] : importSounds(result.filePaths)
+  return result.canceled ? [] : importFiles(result.filePaths)
 })
 ipcMain.handle('clips:open-folder', async () => {
   await mkdir(clipsFolder, { recursive: true })

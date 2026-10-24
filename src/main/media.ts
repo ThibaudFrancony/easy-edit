@@ -10,6 +10,7 @@ import ffmpegStatic from 'ffmpeg-static'
 import ffprobeStatic from 'ffprobe-static'
 import type { AudioTrackInfo, ClipDetails, LibraryFile } from '@shared/types'
 import { toMediaURL } from '@shared/media-url'
+import { DEFAULT_IMAGE_DURATION } from '@shared/project'
 import { readMp4Tracks } from './mp4'
 
 const run = promisify(execFile)
@@ -22,6 +23,7 @@ const ffprobe = unpacked(ffprobeStatic.path)
 export const clipsFolder = join(homedir(), 'Movies', 'Clips')
 /** Les sons importés y sont copiés : un projet ne dépend jamais d'un fichier qui traîne dans Téléchargements. */
 export const soundsFolder = join(homedir(), 'Movies', 'Easy Edit', 'Sons')
+export const imagesFolder = join(homedir(), 'Movies', 'Easy Edit', 'Images')
 // Pas « Cache » : ce dossier appartient au cache HTTP de Chromium.
 const cacheFolder = join(app.getPath('userData'), 'Media')
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v'])
@@ -31,15 +33,21 @@ export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'aac', 'wav', 'aif', 'aiff', 'fla
 /** Ordre des pistes de ReplayClip, utilisé quand un fichier a perdu leurs noms (versions compressées). */
 const REPLAYCLIP_TRACK_NAMES = ['Mix', 'Micro', 'Minecraft', 'Discord', 'Autres sons']
 
-const isAudioPath = (path: string): boolean => AUDIO_EXTENSIONS.includes(extname(path).slice(1).toLowerCase())
+/** Formats d'image acceptés (ceux que FFmpeg sait lire à l'export). */
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tif', 'tiff']
 
-/** Les clips vidéo puis les sons importés, chacun du plus récent au plus ancien. */
+const extensionOf = (path: string): string => extname(path).slice(1).toLowerCase()
+const isAudioPath = (path: string): boolean => AUDIO_EXTENSIONS.includes(extensionOf(path))
+const isImagePath = (path: string): boolean => IMAGE_EXTENSIONS.includes(extensionOf(path))
+
+/** Les clips vidéo, puis les images, puis les sons importés, chacun du plus récent au plus ancien. */
 export async function listFiles(): Promise<LibraryFile[]> {
-  const [videos, sounds] = await Promise.all([
+  const [videos, images, sounds] = await Promise.all([
     filesIn(clipsFolder, 'video', (name) => VIDEO_EXTENSIONS.has(extname(name).toLowerCase())),
+    filesIn(imagesFolder, 'image', isImagePath),
     filesIn(soundsFolder, 'audio', isAudioPath)
   ])
-  return [...videos, ...sounds]
+  return [...videos, ...images, ...sounds]
 }
 
 async function filesIn(folder: string, kind: LibraryFile['kind'], accept: (name: string) => boolean): Promise<LibraryFile[]> {
@@ -65,20 +73,25 @@ async function filesIn(folder: string, kind: LibraryFile['kind'], accept: (name:
   return files.filter((file): file is LibraryFile => file !== null).sort((a, b) => b.createdAt - a.createdAt)
 }
 
-/** Copie des sons dans la bibliothèque (« Titre 2.mp3 » si le nom est pris). Renvoie les chemins des copies. */
-export async function importSounds(paths: string[]): Promise<string[]> {
-  await mkdir(soundsFolder, { recursive: true })
+/**
+ * Copie des sons et des images dans la bibliothèque (« Titre 2.mp3 » si le nom est pris).
+ * Renvoie les chemins des copies ; les autres fichiers sont ignorés.
+ */
+export async function importFiles(paths: string[]): Promise<string[]> {
   const imported: string[] = []
-  for (const source of paths.filter(isAudioPath)) {
-    // Un son déjà dans la bibliothèque n'est pas copié une deuxième fois.
-    if (source.startsWith(soundsFolder + '/')) {
+  for (const source of paths) {
+    const folder = isAudioPath(source) ? soundsFolder : isImagePath(source) ? imagesFolder : null
+    if (!folder) continue
+    // Un fichier déjà dans la bibliothèque n'est pas copié une deuxième fois.
+    if (source.startsWith(folder + '/')) {
       imported.push(source)
       continue
     }
+    await mkdir(folder, { recursive: true })
     const extension = extname(source)
     const base = basename(source, extension)
-    let target = join(soundsFolder, base + extension)
-    for (let index = 2; existsSync(target); index++) target = join(soundsFolder, `${base} ${index}${extension}`)
+    let target = join(folder, base + extension)
+    for (let index = 2; existsSync(target); index++) target = join(folder, `${base} ${index}${extension}`)
     await copyFile(source, target)
     imported.push(target)
   }
@@ -110,6 +123,15 @@ export function clipDetails(path: string): Promise<ClipDetails> {
 async function probe(path: string): Promise<ClipDetails> {
   const { stdout } = await run(ffprobe, ['-v', 'error', '-print_format', 'json', '-show_format', '-show_streams', path])
   const data = JSON.parse(stdout) as { format: { duration?: string }; streams: ProbeStream[] }
+
+  // Une image : un seul flux vidéo, sans son, de durée libre (5 s proposées).
+  if (isImagePath(path)) {
+    const picture = data.streams.find((s) => s.codec_type === 'video')
+    return {
+      path, image: true, duration: DEFAULT_IMAGE_DURATION,
+      width: picture?.width ?? 0, height: picture?.height ?? 0, videoStream: picture?.index ?? 0, audioTracks: []
+    }
+  }
   // Une pochette d'album (mp3, m4a) est un flux vidéo « attached_pic » : ce n'est pas une vidéo.
   const video = data.streams.find((s) => s.codec_type === 'video' && !s.disposition?.attached_pic)
   const audio = data.streams.filter((s) => s.codec_type === 'audio')
@@ -183,7 +205,9 @@ async function cached(folder: string, name: string, produce: (output: string) =>
 
 export async function thumbnail(path: string): Promise<string> {
   const file = await cached('thumbnails', `${await cacheKey(path)}.jpg`, async (output) => {
-    await run(ffmpeg, ['-v', 'error', '-y', '-ss', '2', '-i', path, '-frames:v', '1', '-vf', 'scale=480:-2', '-q:v', '4', output])
+    // Une image n'a pas de « 2 secondes » : on prend son unique image.
+    const seek = isImagePath(path) ? [] : ['-ss', '2']
+    await run(ffmpeg, ['-v', 'error', '-y', ...seek, '-i', path, '-frames:v', '1', '-vf', 'scale=480:-2', '-q:v', '4', output])
   })
   return toMediaURL(file)
 }

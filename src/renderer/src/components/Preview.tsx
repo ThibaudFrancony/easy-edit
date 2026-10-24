@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Segment } from '@shared/types'
+import { segmentsIn, videoLanes } from '@shared/project'
 import { FRAME, player, usePlayback } from '@/engine/player'
 import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
@@ -35,53 +36,84 @@ export function Preview(): React.JSX.Element {
   )
 }
 
-/** Format de l'image : celui du premier clip de la timeline, sinon 16:10 (l'écran d'un MacBook). */
+/** Format de l'image : celui du premier clip de la piste vidéo la plus basse qui en a un, sinon 16:10 (l'écran d'un MacBook). */
 function useAspectRatio(): string {
   const firstSource = useProject((s) => {
-    const video = s.project.lanes.find((l) => l.kind === 'video')
-    return s.project.segments.find((seg) => seg.laneId === video?.id)?.source
+    for (const lane of [...videoLanes(s.project)].reverse()) {
+      const segment = segmentsIn(s.project, lane.id)[0]
+      if (segment) return segment.source
+    }
+    return undefined
   })
   const details = useLibrary((s) => (firstSource ? s.details[firstSource] : undefined))
   return details && details.width > 0 ? `${details.width} / ${details.height}` : '16 / 10'
 }
 
-/**
- * Deux lecteurs vidéo qui se relaient : pendant que l'un affiche le morceau en cours, l'autre prépare le suivant,
- * pour passer d'un clip à l'autre sans image noire.
- */
+/** Un calque par piste vidéo, du bas vers le haut : la piste la plus haute de la timeline passe par-dessus. */
 function VideoLayers(): React.JSX.Element {
-  const first = useRef<HTMLVideoElement>(null)
-  const second = useRef<HTMLVideoElement>(null)
-
-  useEffect(() => {
-    let frame = 0
-    const loop = (): void => {
-      if (first.current && second.current) sync([first.current, second.current])
-      frame = requestAnimationFrame(loop)
-    }
-    frame = requestAnimationFrame(loop)
-    return () => cancelAnimationFrame(frame)
-  }, [])
-
+  // Une chaîne plutôt qu'un tableau : on ne refait le rendu que si les pistes vidéo changent vraiment.
+  const laneIds = useProject((s) => videoLanes(s.project).map((l) => l.id).reverse().join(' '))
   return (
     <>
-      <video ref={first} className={styles.video} muted playsInline preload="auto" />
-      <video ref={second} className={styles.video} muted playsInline preload="auto" />
+      {laneIds.split(' ').filter(Boolean).map((laneId) => (
+        <LaneLayer key={laneId} laneId={laneId} />
+      ))}
     </>
   )
 }
 
-function sync(videos: HTMLVideoElement[]): void {
+/**
+ * Le calque d'une piste : deux lecteurs vidéo qui se relaient (pendant que l'un affiche le morceau en cours,
+ * l'autre prépare le suivant, sans image noire) et une image fixe. Là où la piste est vide, le calque est
+ * transparent et laisse voir ceux du dessous.
+ */
+function LaneLayer({ laneId }: { laneId: string }): React.JSX.Element {
+  const first = useRef<HTMLVideoElement>(null)
+  const second = useRef<HTMLVideoElement>(null)
+  const still = useRef<HTMLImageElement>(null)
+
+  useEffect(() => {
+    let frame = 0
+    const loop = (): void => {
+      if (first.current && second.current && still.current) sync(laneId, [first.current, second.current], still.current)
+      frame = requestAnimationFrame(loop)
+    }
+    frame = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(frame)
+  }, [laneId])
+
+  return (
+    <div className={styles.layer}>
+      <video ref={first} className={styles.video} muted playsInline preload="auto" />
+      <video ref={second} className={styles.video} muted playsInline preload="auto" />
+      <img ref={still} className={styles.video} alt="" draggable={false} />
+    </div>
+  )
+}
+
+function sync(laneId: string, videos: HTMLVideoElement[], still: HTMLImageElement): void {
   const time = player.time()
-  const segments = player.videoSegments
+  const segments = player.laneSegments(laneId)
   const index = segments.findIndex((s) => time >= s.start && time < s.start + s.duration)
   const current = segments[index]
 
-  if (!current) {
-    for (const video of videos) show(video, false)
-    if (!player.playing) for (const video of videos) if (!video.paused) video.pause()
+  if (!current || current.image) {
+    for (const video of videos) {
+      show(video, false)
+      if (!video.paused) video.pause()
+    }
+    if (current) {
+      const url = window.api.mediaURL(current.source)
+      if (still.dataset.src !== url) {
+        still.dataset.src = url
+        still.src = url
+      }
+    }
+    show(still, Boolean(current) && still.complete)
+    preloadNext(segments[index + 1], current, time, videos)
     return
   }
+  show(still, false)
 
   const url = window.api.mediaURL(current.source)
   const target = sourceTime(current, time)
@@ -103,12 +135,14 @@ function sync(videos: HTMLVideoElement[]): void {
     if (!active.seeking && Math.abs(active.currentTime - target) > FRAME / 2) active.currentTime = target
   }
   if (!other.paused) other.pause()
+  preloadNext(segments[index + 1], current, time, [other])
+}
 
-  // Prépare le morceau suivant sur le lecteur libre.
-  const next = segments[index + 1]
-  if (next && next.source !== current.source && next.start - time < 2) {
-    load(other, window.api.mediaURL(next.source), next.sourceStart)
-  }
+/** Prépare le prochain morceau vidéo sur un lecteur libre, pour l'enchaîner sans attente. */
+function preloadNext(next: Segment | undefined, current: Segment | undefined, time: number, free: HTMLVideoElement[]): void {
+  if (!next || next.image || next.source === current?.source || next.start - time > 2) return
+  const video = free.find((v) => v.dataset.visible !== 'true')
+  if (video) load(video, window.api.mediaURL(next.source), next.sourceStart)
 }
 
 function sourceTime(segment: Segment, time: number): number {
@@ -122,8 +156,8 @@ function load(video: HTMLVideoElement, url: string, time: number): void {
   video.currentTime = time
 }
 
-function show(video: HTMLVideoElement, visible: boolean): void {
-  video.dataset.visible = String(visible)
+function show(element: HTMLElement, visible: boolean): void {
+  element.dataset.visible = String(visible)
 }
 
 function Transport(): React.JSX.Element {

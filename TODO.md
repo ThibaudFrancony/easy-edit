@@ -54,6 +54,12 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - [x] Barre de progression, annulation (aucun fichier à moitié écrit ne reste), message d'erreur lisible.
 - [x] À la fin : afficher le fichier dans le Finder. Un nom déjà pris devient « Nom 2.mp4 ».
 
+## Lot 5 : calques et images ✓
+
+- [x] Boutons « + Vidéo » et « + Audio » sous les pistes. Une piste vidéo s'ajoute tout en haut ; la piste la plus haute passe par-dessus les autres, dans l'aperçu comme à l'export. Renommer ou supprimer une piste vidéo dans l'inspecteur (il en reste toujours une).
+- [x] Images (png, jpg, webp, bmp, tiff) : importées dans la bibliothèque (glisser ou +, copiées dans `~/Movies/Easy Edit/Images`), posées sur une piste vidéo pour 5 s, durée réglée en tirant leurs bords. La transparence d'un png laisse voir les pistes du dessous.
+- [x] Un clip ou une image va sur la piste vidéo visée au dépôt (sinon la plus basse) ; un son sur la bande son visée.
+
 ## Plus tard
 
 - Réordonner les pistes en les glissant.

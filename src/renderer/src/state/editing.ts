@@ -1,7 +1,10 @@
 import type { ClipDetails, Lane } from '@shared/types'
-import { addMusicLane, insertAudioFile, moveSegments, removeLane, removeSegments, splitAt, toggleLink } from '@shared/project'
+import {
+  addMusicLane, addVideoLane, insertAudioFile, insertClip, insertImage, moveSegments, removeLane, removeSegments, splitAt, toggleLink, trimSegment
+} from '@shared/project'
 import { measureLoudness, normalizationGains } from '@/engine/loudness'
 import { player } from '@/engine/player'
+import { clipDetails } from './library'
 import { useProject } from './project'
 import { instantLayout, useTimeline } from './timeline'
 
@@ -83,13 +86,46 @@ export function renameLane(laneId: string, name: string): void {
   if (trimmed) updateLane(laneId, (lane) => (lane.name = trimmed))
 }
 
-/** Bouton + sous les pistes : une piste de fond sonore vide, prête à recevoir des sons. */
-export function addEmptyLane(): void {
+/** Boutons sous les pistes : une piste vide, vidéo (ajoutée tout en haut, au premier plan) ou audio (en bas). */
+export function addEmptyLane(kind: 'video' | 'audio'): void {
   let laneId = ''
   useProject.getState().update((draft) => {
-    laneId = addMusicLane(draft)
+    laneId = kind === 'video' ? addVideoLane(draft) : addMusicLane(draft)
   })
   useTimeline.getState().inspect(laneId)
+}
+
+/**
+ * Pose sur la timeline ce qu'on y dépose (clips, images, sons), à `time`, sur la piste visée si elle convient.
+ * Une seule étape d'annulation par fichier.
+ */
+export async function placeFiles(paths: string[], time: number, laneId?: string): Promise<void> {
+  const sounds: string[] = []
+  let at = time
+  for (const path of paths) {
+    const details = await clipDetails(path)
+    if (details.image) {
+      useProject.getState().update((draft) => void insertImage(draft, details, at, laneId))
+    } else if (details.videoStream !== null) {
+      useProject.getState().update((draft) => insertClip(draft, details, at, laneId))
+    } else {
+      sounds.push(path)
+      continue
+    }
+    at += details.duration
+  }
+  if (sounds.length > 0) await addAudioFiles(sounds, at, laneId)
+}
+
+/** Fin d'un rognage à la souris (bord d'une image ou d'un morceau). */
+export function commitTrim(): void {
+  const { trim, setTrim } = useTimeline.getState()
+  if (!trim) return
+  if (Math.abs(trim.delta) > 1e-6) {
+    instantLayout()
+    useProject.getState().update((draft) => trimSegment(draft, trim.id, trim.edge, trim.delta, trim.sourceDuration))
+  }
+  setTrim(null)
 }
 
 export function deleteLane(laneId: string): void {

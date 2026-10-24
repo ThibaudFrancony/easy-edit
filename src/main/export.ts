@@ -2,11 +2,12 @@ import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { ExportQuality, Project } from '@shared/types'
-import { projectDuration, segmentsIn } from '@shared/project'
+import { projectDuration, segmentsIn, videoLanes } from '@shared/project'
 import { audioTrackFile, clipDetails } from './media'
 
-// Construit la commande FFmpeg qui calcule le montage final : l'image (morceaux et trous noirs mis bout à bout)
-// et le son (chaque morceau placé à son instant, au volume de sa piste, puis tout mélangé).
+// Construit la commande FFmpeg qui calcule le montage final : l'image (pistes vidéo superposées, la plus haute
+// par-dessus, morceaux de clips et images fixes) et le son (chaque morceau placé à son instant, au volume de sa piste,
+// puis tout mélangé).
 
 export const exportsFolder = join(homedir(), 'Movies', 'Easy Edit', 'Exports')
 
@@ -41,33 +42,45 @@ export async function buildExport(project: Project, quality: ExportQuality, outp
     inputs.push('-ss', seconds(start), '-t', seconds(length), '-i', path)
     return inputCount++
   }
+  // Image fixe : pas de -ss, elle est répétée pendant `length` secondes.
+  const addImageInput = (path: string, length: number): number => {
+    inputs.push('-loop', '1', '-framerate', String(FPS), '-t', seconds(length), '-i', path)
+    return inputCount++
+  }
 
   // ——— Image ———
-  const videoLane = project.lanes.find((l) => l.kind === 'video')
-  const videoSegments = videoLane ? segmentsIn(project, videoLane.id) : []
-  const first = videoSegments[0] ? await clipDetails(videoSegments[0].source) : null
+  // Les pistes vidéo sont empilées de la plus basse à la plus haute, chacune dans l'ordre du temps.
+  const lanesBottomUp = [...videoLanes(project)].reverse()
+  const firstSegment = lanesBottomUp.flatMap((lane) => segmentsIn(project, lane.id))[0]
+  const first = firstSegment ? await clipDetails(firstSegment.source) : null
   const ratio = first && first.height > 0 ? first.width / first.height : 16 / 9
   const height = quality === '1080p' || !first ? 1080 : even(first.height)
   const width = even(height * ratio)
-  const fit = `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,format=yuv420p`
 
-  const pieces: string[] = []
-  const black = (length: number): void => {
-    const label = `gap${pieces.length}`
-    graph.push(`color=c=black:s=${width}x${height}:r=${FPS}:d=${seconds(length)},setsar=1,format=yuv420p[${label}]`)
-    pieces.push(`[${label}]`)
+  let base = 'base0'
+  graph.push(`color=c=black:s=${width}x${height}:r=${FPS}:d=${seconds(duration)},format=yuv420p[${base}]`)
+  let layers = 0
+  for (const lane of lanesBottomUp) {
+    for (const segment of segmentsIn(project, lane.id)) {
+      const index = segment.image
+        ? addImageInput(segment.source, segment.duration)
+        : addInput(segment.source, segment.sourceStart, segment.duration)
+      const layer = `s${layers++}`
+      // Le fond transparent de l'image réduite laisse voir les couches du dessous.
+      graph.push(
+        `[${index}:v:0]fps=${FPS},scale=${width}:${height}:force_original_aspect_ratio=decrease,format=yuva420p,` +
+          `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1,trim=duration=${seconds(segment.duration)},` +
+          `setpts=PTS-STARTPTS+${seconds(segment.start)}/TB[${layer}]`
+      )
+      const end = segment.start + segment.duration
+      const next = `base${layers}`
+      graph.push(
+        `[${base}][${layer}]overlay=eof_action=pass:enable='between(t,${seconds(segment.start)},${seconds(end)})'[${next}]`
+      )
+      base = next
+    }
   }
-  let cursor = 0
-  for (const segment of videoSegments) {
-    if (segment.start - cursor > 1 / FPS) black(segment.start - cursor)
-    const index = addInput(segment.source, segment.sourceStart, segment.duration)
-    const label = `v${pieces.length}`
-    graph.push(`[${index}:v:0]fps=${FPS},${fit},trim=duration=${seconds(segment.duration)},setpts=PTS-STARTPTS[${label}]`)
-    pieces.push(`[${label}]`)
-    cursor = Math.max(cursor, segment.start + segment.duration)
-  }
-  if (duration - cursor > 1 / FPS) black(duration - cursor)
-  graph.push(`${pieces.join('')}concat=n=${pieces.length}:v=1:a=0[vout]`)
+  graph.push(`[${base}]format=yuv420p[vout]`)
 
   // ——— Son ———
   const sounds: string[] = []

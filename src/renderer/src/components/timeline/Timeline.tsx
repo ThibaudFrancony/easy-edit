@@ -1,14 +1,14 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Lane, Project } from '@shared/types'
-import { insertClip, projectDuration, segmentsIn, snapTimes } from '@shared/project'
+import { projectDuration, segmentsIn, snapTimes } from '@shared/project'
 import { player } from '@/engine/player'
-import { clipDetails, useLibrary } from '@/state/library'
+import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { LEADING_INSET, MAX_ZOOM, MIN_ZOOM, timeToX, useTimeline, xToTime } from '@/state/timeline'
 import { fade, quick, standard } from '@/lib/motion'
-import { addAudioFiles, addEmptyLane, normalizeLanes } from '@/state/editing'
-import { CLIP_DRAG_TYPE, droppedAudioPaths } from '../Library'
+import { addEmptyLane, normalizeLanes, placeFiles } from '@/state/editing'
+import { CLIP_DRAG_TYPE, droppedMediaPaths } from '../Library'
 import { Icon } from '../Icon'
 import { ContextMenu, type MenuPosition } from './ContextMenu'
 import { Ruler } from './Ruler'
@@ -36,7 +36,7 @@ export function Timeline(): React.JSX.Element {
   const [fileDrop, setFileDrop] = useState<number | null>(null)
   const inspected = useTimeline((s) => s.inspectedLane)
   const hasAudio = project.lanes.some((l) => l.kind === 'audio')
-  const dragSnap = useTimeline((s) => s.drag?.snapAt ?? null)
+  const dragSnap = useTimeline((s) => s.drag?.snapAt ?? s.trim?.snapAt ?? null)
   const snapAt = ghost?.snapAt ?? dragSnap
 
   const lanes = useMemo(() => [...project.lanes].sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'video' ? -1 : 1)), [project.lanes])
@@ -45,7 +45,7 @@ export function Timeline(): React.JSX.Element {
   const contentWidth = Math.max(LEADING_INSET * 2 + (duration + 30) * pps, viewportWidth)
 
   useScrollSync(scrollRef)
-  useRevealNewLane(rowsRef, lanes.length)
+  useRevealNewLane(rowsRef, useMemo(() => lanes.map((l) => l.id), [lanes]))
   useWheelZoom(scrollRef)
 
   function dropPosition(clientX: number): Ghost | null {
@@ -94,9 +94,7 @@ export function Timeline(): React.JSX.Element {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0 }}
                   transition={standard}
-                  onClick={() => {
-                    if (lane.kind === 'audio') useTimeline.getState().inspect(inspected === lane.id ? null : lane.id)
-                  }}
+                  onClick={() => useTimeline.getState().inspect(inspected === lane.id ? null : lane.id)}
                 >
                   <span className={styles.headName}>{lane.name}</span>
                   <AnimatePresence>
@@ -109,16 +107,16 @@ export function Timeline(): React.JSX.Element {
                 </motion.button>
               ))}
             </AnimatePresence>
-            <motion.button
-              layout
-              className={styles.addLane}
-              aria-label="Ajouter une piste"
-              title="Ajouter une piste"
-              transition={standard}
-              onClick={addEmptyLane}
-            >
-              <Icon name="plus" size={14} />
-            </motion.button>
+            <motion.div layout className={styles.addLanes} transition={standard}>
+              <button className={styles.addLane} onClick={() => addEmptyLane('video')}>
+                <Icon name="plus" size={12} />
+                Vidéo
+              </button>
+              <button className={styles.addLane} onClick={() => addEmptyLane('audio')}>
+                <Icon name="plus" size={12} />
+                Audio
+              </button>
+            </motion.div>
           </div>
 
           <div
@@ -146,21 +144,18 @@ export function Timeline(): React.JSX.Element {
               setFileDrop(null)
               const laneId = (event.target as HTMLElement).closest<HTMLElement>('[data-lane-id]')?.dataset.laneId
               if (event.dataTransfer.files.length > 0 && !event.dataTransfer.types.includes(CLIP_DRAG_TYPE)) {
-                // Un son venu du Finder est d'abord copié dans la bibliothèque : le projet n'en dépend plus.
+                // Un son ou une image venus du Finder sont d'abord copiés dans la bibliothèque : le projet n'en dépend plus.
                 const time = fileDropTime(event.clientX)
-                const imported = await useLibrary.getState().importSounds(droppedAudioPaths(event))
-                if (imported.length > 0) await addAudioFiles(imported, time, laneId)
+                const imported = await useLibrary.getState().importFiles(droppedMediaPaths(event))
+                if (imported.length > 0) await placeFiles(imported, time, laneId)
                 return
               }
               const path = event.dataTransfer.getData(CLIP_DRAG_TYPE)
               const position = dropPosition(event.clientX) ?? ghost
               setGhost(null)
               useLibrary.getState().setDragged(null)
-              if (!path || !position) return
-              const details = await clipDetails(path)
-              // Un son de la bibliothèque va sur la piste de fond sonore visée, sinon sur une nouvelle.
-              if (details.videoStream === null) await addAudioFiles([path], position.start, laneId)
-              else useProject.getState().update((draft) => insertClip(draft, details, position.start))
+              // Chaque chose va sur la piste visée si elle lui convient : clip ou image sur une piste vidéo, son sur une bande son.
+              if (path && position) await placeFiles([path], position.start, laneId)
             }}
           >
             <div
@@ -365,18 +360,18 @@ function NormalizeButton({ disabled }: { disabled: boolean }): React.JSX.Element
   )
 }
 
-/** Quand une piste s'ajoute en bas, la timeline défile en douceur pour la montrer. */
-function useRevealNewLane(rowsRef: React.RefObject<HTMLDivElement | null>, laneCount: number): void {
-  const previous = useRef(laneCount)
+/** Quand une piste s'ajoute (en haut pour la vidéo, en bas pour l'audio), la timeline défile en douceur jusqu'à elle. */
+function useRevealNewLane(rowsRef: React.RefObject<HTMLDivElement | null>, laneIds: string[]): void {
+  const previous = useRef(laneIds)
   useEffect(() => {
-    const grew = laneCount > previous.current
-    previous.current = laneCount
-    if (!grew) return
+    const known = new Set(previous.current)
+    previous.current = laneIds
+    const added = laneIds.find((id) => !known.has(id))
+    if (!added) return
     // Après l'animation d'apparition de la piste, pour défiler jusqu'à sa vraie position.
     const timer = setTimeout(() => {
-      const rows = rowsRef.current
-      rows?.scrollTo({ top: rows.scrollHeight, behavior: 'smooth' })
+      rowsRef.current?.querySelector(`[data-lane-id="${added}"]`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
     }, 60)
     return () => clearTimeout(timer)
-  }, [laneCount, rowsRef])
+  }, [laneIds, rowsRef])
 }

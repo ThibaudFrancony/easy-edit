@@ -38,7 +38,7 @@ Une seule fenêtre, sombre :
 - **À gauche, la bibliothèque « Fichiers »** : les clips vidéo (vignette, durée) et les sons importés (forme d'onde, durée). Le + de l'en-tête importe un son ; on peut aussi y glisser des sons depuis le Finder. Les sons importés sont copiés dans `~/Movies/Easy Edit/Sons`.
 - **Au centre, l'aperçu** : le lecteur et les commandes de lecture.
 - **À droite, l'inspecteur** (lot 3) : les réglages de la piste sélectionnée, qui glissent depuis la droite.
-- **En bas, la timeline** : une ligne vidéo, puis une ligne par piste audio.
+- **En bas, la timeline** : les pistes vidéo (la plus haute passe par-dessus les autres dans l'image), puis les pistes audio. L'ordre de `project.lanes` est l'ordre d'affichage.
 - **L'export** se fait dans un panneau qui glisse depuis le haut de la fenêtre (bouton « Exporter » de la barre du haut, ⌘E), pas dans une nouvelle fenêtre.
 - Raccourcis comme dans les logiciels pros : Espace (lecture), J/K/L, ← → (image par image).
 
@@ -90,7 +90,7 @@ scripts/icon.mjs   génère l'icône à partir du SVG
 - Les opérations sur un projet (`insertClip`, `splitAt`, `moveSegments`, `removeSegments`, `toggleLink`…) sont des fonctions pures dans `src/shared/project.ts`.
 - Tous les raccourcis sont gérés dans `useKeyboard.ts`. Ceux du menu y sont affichés avec `registerAccelerator: false`, pour que S, ⌫ ou ⌘Z gardent leur rôle normal dans un champ de texte ; cliquer l'entrée de menu envoie une `MenuAction`.
 - Les modifications successives d'un même réglage (un curseur qu'on glisse) passent un `mergeKey` à `update` : une seule étape d'annulation.
-- Projets : `~/Movies/Easy Edit/Projets/*.easyedit` (JSON). Exports : `~/Movies/Easy Edit/Exports`. Sons importés : `~/Movies/Easy Edit/Sons`. Caches (vignettes, pistes audio extraites) : `~/Library/Application Support/Easy Edit/Media`.
+- Projets : `~/Movies/Easy Edit/Projets/*.easyedit` (JSON). Exports : `~/Movies/Easy Edit/Exports`. Sons et images importés : `~/Movies/Easy Edit/Sons` et `~/Movies/Easy Edit/Images`. Caches (vignettes, pistes audio extraites) : `~/Library/Application Support/Easy Edit/Media`.
 
 ## Compiler et lancer
 
@@ -123,7 +123,8 @@ Fait :
 - lot 1 : projets, bibliothèque, aperçu et lecture de la timeline, glisser-déposer aimanté, zoom ;
 - lot 2 : sélection, déplacement, coupe, suppression, liaison, annuler, formes d'onde ;
 - lot 3 : inspecteur de piste, volume jusqu'à 200 %, fonds sonores, normalisation ;
-- lot 4 : export .mp4.
+- lot 4 : export .mp4 ;
+- lot 5 : plusieurs pistes vidéo superposées, images à durée réglable.
 
 La suite, et les décisions d'UI et d'UX déjà prises, sont dans [TODO.md](TODO.md). On avance lot par lot et on coche au fur et à mesure.
 

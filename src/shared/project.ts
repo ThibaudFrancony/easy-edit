@@ -9,8 +9,38 @@ export function emptyProject(): Project {
   return { version: 1, lanes: [videoLane()], segments: [] }
 }
 
-function videoLane(): Lane {
-  return { id: newID(), kind: 'video', name: 'Vidéo', volume: 1, muted: false, normalized: false }
+function videoLane(name = 'Vidéo'): Lane {
+  return { id: newID(), kind: 'video', name, volume: 1, muted: false, normalized: false }
+}
+
+/** Durée d'une image posée sur la timeline, avant qu'on la règle. */
+export const DEFAULT_IMAGE_DURATION = 5
+/** Morceau le plus court qu'on puisse obtenir en rognant une image. */
+export const MIN_SEGMENT = 0.1
+
+/** Les pistes vidéo de haut en bas (la première passe par-dessus les autres). */
+export function videoLanes(project: Project): Lane[] {
+  return project.lanes.filter((l) => l.kind === 'video')
+}
+
+/** La piste vidéo visée si c'en est une, sinon la plus basse (créée si le projet n'en a aucune). */
+function targetVideoLane(project: Project, laneId?: string): Lane {
+  const lanes = videoLanes(project)
+  const target = lanes.find((l) => l.id === laneId) ?? lanes.at(-1)
+  if (target) return target
+  const lane = videoLane()
+  project.lanes.unshift(lane)
+  return lane
+}
+
+/** Ajoute une piste vidéo tout en haut (« Vidéo 2 », « Vidéo 3 »…), donc au premier plan. Renvoie son identifiant. */
+export function addVideoLane(project: Project): string {
+  const names = new Set(project.lanes.map((l) => l.name))
+  let index = 2
+  while (names.has(`Vidéo ${index}`)) index++
+  const lane = videoLane(`Vidéo ${index}`)
+  project.lanes.unshift(lane)
+  return lane.id
 }
 
 export function projectDuration(project: Project): number {
@@ -35,15 +65,11 @@ export function audioLane(project: Project, name: string): Lane {
  * Pose un clip à `time` : un morceau vidéo et un morceau par piste audio, tous liés.
  * Ce qui se trouvait déjà à cet endroit sur ces pistes est recouvert (raccourci ou coupé).
  */
-export function insertClip(project: Project, clip: ClipDetails, time: number): void {
+export function insertClip(project: Project, clip: ClipDetails, time: number, laneId?: string): void {
   const linkId = newID()
   const start = Math.max(0, time)
   const placed: Segment[] = []
-  let video = project.lanes.find((l) => l.kind === 'video')
-  if (!video) {
-    video = videoLane()
-    project.lanes.unshift(video)
-  }
+  const video = targetVideoLane(project, laneId)
   const piece = (laneId: string, stream: number): Segment => ({
     id: newID(), laneId, source: clip.path, stream, sourceStart: 0, duration: clip.duration, start, linkId
   })
@@ -207,4 +233,37 @@ export function addMusicLane(project: Project): string {
   const lane: Lane = { id: newID(), kind: 'audio', name, volume: 1, muted: false, normalized: true, music: true }
   project.lanes.push(lane)
   return lane.id
+}
+
+/** Pose une image fixe à `time` sur la piste vidéo visée (sinon la plus basse). Renvoie la piste utilisée. */
+export function insertImage(project: Project, image: ClipDetails, time: number, laneId?: string): string {
+  const lane = targetVideoLane(project, laneId)
+  const start = Math.max(0, time)
+  const duration = image.duration > 0 ? image.duration : DEFAULT_IMAGE_DURATION
+  clearRange(project, lane.id, start, start + duration)
+  project.segments.push({
+    id: newID(), laneId: lane.id, source: image.path, stream: 0, sourceStart: 0, duration, start, linkId: null, image: true
+  })
+  return lane.id
+}
+
+/**
+ * Rogne ou allonge un morceau par un de ses bords. Une image s'allonge librement ; un clip reste dans les limites
+ * de sa source (`sourceDuration`). Ce que le morceau recouvre ensuite sur sa piste est raccourci.
+ */
+export function trimSegment(project: Project, id: string, edge: 'start' | 'end', delta: number, sourceDuration = Infinity): void {
+  const segment = project.segments.find((s) => s.id === id)
+  if (!segment) return
+  const end = segment.start + segment.duration
+  if (edge === 'end') {
+    const room = segment.image ? Infinity : sourceDuration - segment.sourceStart
+    segment.duration = Math.min(room, Math.max(MIN_SEGMENT, segment.duration + delta))
+  } else {
+    const earliest = segment.image ? 0 : Math.max(0, segment.start - segment.sourceStart)
+    const start = Math.min(end - MIN_SEGMENT, Math.max(earliest, segment.start + delta))
+    if (!segment.image) segment.sourceStart += start - segment.start
+    segment.start = start
+    segment.duration = end - start
+  }
+  clearRange(project, segment.laneId, segment.start, segment.start + segment.duration, new Set([id]))
 }
