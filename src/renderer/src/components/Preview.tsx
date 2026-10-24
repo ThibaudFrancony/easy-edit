@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Segment, Transform } from '@shared/types'
 import { segmentsIn, videoLanes } from '@shared/project'
@@ -10,51 +10,131 @@ import { FRAME, player, usePlayback } from '@/engine/player'
 import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
-import { fade } from '@/lib/motion'
+import { mirrorRatio, setFullscreen, toggleFullscreen, toggleMonitor, useScreens } from '@/state/screens'
+import { fade, quick, standard } from '@/lib/motion'
 import { timecode } from '@/lib/format'
 import { Icon } from './Icon'
 import styles from './Preview.module.css'
 
 /** Écart toléré entre la vidéo et l'horloge pendant la lecture avant de recaler l'image. */
 const MAX_DRIFT = 0.12
+/** En plein écran, les commandes et le pointeur disparaissent après ce délai sans mouvement. */
+const IDLE_DELAY = 2000
+
+/** La plus grande image au format `ratio` qui tient dans son conteneur (qui doit avoir `container-type: size`). */
+export const frameSize = (ratio: string): React.CSSProperties => ({ aspectRatio: ratio, width: `min(100cqw, 100cqh * ${ratio})` })
 
 export function Preview(): React.JSX.Element {
   const empty = useProject((s) => s.project.segments.length === 0)
   const ratio = useAspectRatio()
+  const fullscreen = useScreens((s) => s.fullscreen)
+  const resized = useResizesAround(fullscreen)
+  const [idle, setIdle] = useIdle(fullscreen)
+
+  useEffect(() => mirrorRatio(ratio), [ratio])
 
   return (
-    <main className={styles.preview}>
-      <div className={styles.stage}>
-        <div
-          className={styles.frame}
-          style={{ aspectRatio: ratio, width: `min(100cqw, 100cqh * ${ratio.replace('/', ' / ')})` }}
-          onPointerDown={moveOnPreview.down}
-          onPointerMove={moveOnPreview.move}
-          onPointerUp={moveOnPreview.up}
-          onContextMenu={(event) => {
-            event.preventDefault()
-            const box = event.currentTarget.getBoundingClientRect()
+    // La place de l'aperçu reste réservée dans la fenêtre pendant qu'il est en plein écran.
+    <div className={styles.slot}>
+      <main
+        className={styles.preview}
+        data-fullscreen={fullscreen}
+        data-idle={idle}
+        onPointerMove={() => setIdle(false)}
+      >
+        <AnimatePresence>
+          {fullscreen && (
+            <motion.div key="fond" className={styles.backdrop} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade} />
+          )}
+        </AnimatePresence>
+        <div className={styles.stage}>
+          <motion.div
+            className={styles.frame}
+            layout
+            layoutDependency={`${fullscreen} ${resized} ${ratio}`}
+            transition={standard}
+            style={frameSize(ratio)}
+            initial={false}
+            animate={{ borderRadius: fullscreen ? 0 : 8 }}
+            onPointerDown={fullscreen ? undefined : moveOnPreview.down}
+            onPointerMove={fullscreen ? undefined : moveOnPreview.move}
+            onPointerUp={fullscreen ? undefined : moveOnPreview.up}
+            onDoubleClick={fullscreen ? () => setFullscreen(false) : undefined}
+            onContextMenu={(event) => {
+              event.preventDefault()
+              if (fullscreen) return
+              const box = event.currentTarget.getBoundingClientRect()
             const segment = segmentAt((event.clientX - box.left) / box.width, (event.clientY - box.top) / box.height, box.width / box.height)
             if (!segment) return
-            useTimeline.getState().setSelection(new Set([segment.id]))
-            useCanvas.getState().openMenu(event.clientX, event.clientY, segment.id)
+              useTimeline.getState().setSelection(new Set([segment.id]))
+              useCanvas.getState().openMenu(event.clientX, event.clientY, segment.id)
+            }}
+          >
+            <VideoLayers />
+            {!fullscreen && <SelectionOutline />}
+            {!fullscreen && <FrameEditor />}
+            <AnimatePresence>
+              {empty && (
+                <motion.div className={styles.placeholder} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}>
+                  <Icon name="film" size={28} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+        <motion.div
+          className={styles.bottom}
+          layout="position"
+          layoutDependency={fullscreen}
+          transition={standard}
+          animate={{ opacity: fullscreen && idle ? 0 : 1 }}
+          // Les commandes restent affichées tant que le pointeur est dessus.
+          onPointerMove={(event) => {
+            event.stopPropagation()
+            setIdle(false, true)
           }}
         >
-          <VideoLayers />
-          <SelectionOutline />
-          <FrameEditor />
-          <AnimatePresence>
-            {empty && (
-              <motion.div className={styles.placeholder} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade}>
-                <Icon name="film" size={28} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-      <BottomBar />
-    </main>
+          <BottomBar />
+        </motion.div>
+      </main>
+    </div>
   )
+}
+
+/**
+ * Change pendant la seconde qui suit l'entrée ou la sortie du plein écran, à chaque redimensionnement de la fenêtre :
+ * l'image suit alors en douceur le passage de la fenêtre en plein écran, et seulement dans ce cas.
+ */
+function useResizesAround(fullscreen: boolean): number {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    const bump = (): void => setCount((n) => n + 1)
+    window.addEventListener('resize', bump)
+    const stop = setTimeout(() => window.removeEventListener('resize', bump), 1000)
+    return () => {
+      clearTimeout(stop)
+      window.removeEventListener('resize', bump)
+    }
+  }, [fullscreen])
+  return count
+}
+
+/** En plein écran : vrai après `IDLE_DELAY` sans mouvement du pointeur ; `hold` le garde faux (pointeur sur les commandes). */
+function useIdle(active: boolean): [boolean, (idle: false, hold?: boolean) => void] {
+  const [idle, setIdle] = useState(true)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => {
+    // On entre en plein écran sans commandes : elles reviennent au premier mouvement.
+    setIdle(true)
+    return () => clearTimeout(timer.current)
+  }, [active])
+  const wake = (_idle: false, hold = false): void => {
+    if (!active) return
+    setIdle(false)
+    clearTimeout(timer.current)
+    if (!hold) timer.current = setTimeout(() => setIdle(true), IDLE_DELAY)
+  }
+  return [idle, wake]
 }
 
 /**
@@ -119,7 +199,7 @@ function useAspectRatio(): string {
 }
 
 /** Un calque par piste vidéo, du bas vers le haut : la piste la plus haute de la timeline passe par-dessus. */
-function VideoLayers(): React.JSX.Element {
+export function VideoLayers(): React.JSX.Element {
   // Une chaîne plutôt qu'un tableau : on ne refait le rendu que si les pistes vidéo changent vraiment.
   const laneIds = useProject((s) => videoLanes(s.project).map((l) => l.id).reverse().join(' '))
   return (
@@ -275,7 +355,7 @@ function BottomBar(): React.JSX.Element {
   const editing = useCanvas((s) => s.editing)
   const exists = useProject((s) => Boolean(editing && s.project.segments.some((seg) => seg.id === editing.segmentId)))
   return (
-    <div className={styles.bottom}>
+    <>
       <AnimatePresence mode="wait" initial={false}>
         {editing && exists ? (
           <FrameToolbar key="cadrage" segmentId={editing.segmentId} mode={editing.mode} />
@@ -285,7 +365,7 @@ function BottomBar(): React.JSX.Element {
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   )
 }
 
@@ -321,7 +401,44 @@ function Transport(): React.JSX.Element {
           <Icon name="frame-forward" />
         </button>
       </div>
-      <div className={styles.spacer} />
+      <ScreenButtons />
+    </div>
+  )
+}
+
+/** Plein écran, et recopie sur l'autre écran (seulement quand il y en a un). */
+function ScreenButtons(): React.JSX.Element {
+  const fullscreen = useScreens((s) => s.fullscreen)
+  const monitor = useScreens((s) => s.monitor)
+  const otherDisplay = useScreens((s) => s.otherDisplay)
+  return (
+    <div className={styles.tools}>
+      <AnimatePresence initial={false}>
+        {(otherDisplay || monitor) && (
+          <motion.button
+            key="moniteur"
+            className="icon-button"
+            data-active={monitor}
+            aria-label={monitor ? "Fermer l'aperçu sur l'autre écran" : "Aperçu sur l'autre écran"}
+            title={monitor ? "Fermer l'aperçu sur l'autre écran (⇧F)" : "Aperçu sur l'autre écran (⇧F)"}
+            onClick={toggleMonitor}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={quick}
+          >
+            <Icon name="display" />
+          </motion.button>
+        )}
+      </AnimatePresence>
+      <button
+        className="icon-button"
+        aria-label={fullscreen ? 'Quitter le plein écran' : 'Plein écran'}
+        title={fullscreen ? 'Quitter le plein écran (F)' : 'Plein écran (F)'}
+        onClick={toggleFullscreen}
+      >
+        <Icon name={fullscreen ? 'fullscreen-exit' : 'fullscreen'} />
+      </button>
     </div>
   )
 }

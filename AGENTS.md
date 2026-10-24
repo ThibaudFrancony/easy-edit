@@ -40,6 +40,7 @@ Une seule fenêtre, sombre :
 - **À droite, l'inspecteur** (lot 3) : les réglages de la piste sélectionnée, qui glissent depuis la droite.
 - **En bas, la timeline** : les pistes vidéo (la plus haute passe par-dessus les autres dans l'image ; les sous-titres arrivent tout en haut), puis les pistes audio. L'ordre de `project.lanes` est l'ordre d'affichage.
 - **L'export** se fait dans un panneau qui glisse depuis le haut de la fenêtre (bouton « Exporter » de la barre du haut, ⌘E), pas dans une nouvelle fenêtre.
+- **Plein écran** (F) : l'aperçu remplit l'écran, commandes flottantes qui se cachent. **Deuxième écran** (⇧F) : seule exception à la fenêtre unique, une fenêtre sans bordure (`#monitor`, `components/Monitor.tsx`) qui recopie l'image ; elle suit le projet et l'horloge de la fenêtre principale (`state/screens.ts`, `player.follow`), qui garde le son.
 - Raccourcis comme dans les logiciels pros : Espace (lecture), J/K/L, ← → (image par image).
 
 Les textes de l'interface sont en français.
@@ -128,9 +129,12 @@ Fait :
 - lot 4 : export .mp4 ;
 - lot 5 : plusieurs pistes vidéo superposées, images à durée réglable ;
 - lot 6 : bibliothèque par catégories, cadrage (redimensionner, rogner, déplacer sur l'aperçu) ;
-- lot 7 : sous-titres automatiques (Voz), quatre styles, incrustés à l'export.
+- lot 7 : sous-titres automatiques (Voz), quatre styles, incrustés à l'export ;
+- lot 8 : aperçu en plein écran et sur un deuxième écran.
 
 La suite, et les décisions d'UI et d'UX déjà prises, sont dans [TODO.md](TODO.md). On avance lot par lot et on coche au fur et à mesure.
+
+Les idées passent d'abord par [IDEES.md](IDEES.md). Quand Thibaud envoie des idées : les noter dans « En vrac », les regrouper en chantiers (une idée qui touche le même code ou le même geste qu'une autre va avec elle), poser les questions qui manquent, puis écrire le plan une fois les réponses connues. Un chantier validé devient le lot suivant de TODO.md.
 
 ## Git
 

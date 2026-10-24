@@ -1,10 +1,36 @@
+.slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+/* Au-dessus de la timeline : en sortant du plein écran, l'image repasse par-dessus le reste en revenant à sa place. */
 .preview {
+  position: relative;
+  z-index: 5;
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 20px 24px 14px;
+}
+
+.preview[data-fullscreen='true'] {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  padding: 0;
+}
+
+.preview[data-fullscreen='true'][data-idle='true'] {
+  cursor: none;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: #000;
 }
 
 .stage {
@@ -17,10 +43,9 @@
   justify-content: center;
 }
 
-/* La plus grande image au bon format qui tient dans l'espace disponible (largeur calculée dans Preview.tsx). */
+/* La plus grande image au bon format qui tient dans l'espace disponible (`frameSize` dans Preview.tsx). */
 .frame {
   position: relative;
-  border-radius: 8px;
   overflow: hidden;
   background: #000;
 }
@@ -60,6 +85,21 @@
   justify-content: center;
 }
 
+/* En plein écran, les commandes flottent en bas de l'image. */
+.preview[data-fullscreen='true'] .bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 24px;
+  width: min(640px, 100% - 48px);
+  height: 52px;
+  margin: 0 auto;
+  padding: 0 8px 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
 .bottomInner {
   flex: 1;
   display: flex;
@@ -87,8 +127,15 @@
   gap: 8px;
 }
 
-.spacer {
+.tools {
   flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.tools [data-active='true'] {
+  color: var(--accent);
 }
 
 .play {

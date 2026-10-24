@@ -8,6 +8,7 @@ import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { fileName } from '@/lib/format'
 import { useExport } from '@/state/export'
+import { toggleFullscreen, toggleMonitor, watchScreens } from '@/state/screens'
 import { ExportPanel } from './components/ExportPanel'
 import { ContextMenu } from './components/timeline/ContextMenu'
 import { Icon } from './components/Icon'
@@ -85,12 +86,17 @@ function useAppEvents(): void {
         delete: () => deleteSelection(false),
         'delete-close-gap': () => deleteSelection(true),
         'toggle-link': toggleLinkSelection,
-        export: () => void useExport.getState().show()
+        export: () => void useExport.getState().show(),
+        fullscreen: toggleFullscreen,
+        monitor: toggleMonitor
       }
       actions[action]()
     })
 
+    const offScreens = watchScreens()
+
     return () => {
+      offScreens()
       window.removeEventListener('focus', refresh)
       unsubscribe()
       offProject()

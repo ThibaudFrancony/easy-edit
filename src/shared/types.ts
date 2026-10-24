@@ -155,6 +155,23 @@ export type MenuAction =
   | 'delete-close-gap'
   | 'toggle-link'
   | 'export'
+  | 'fullscreen'
+  | 'monitor'
+
+/** Horloge de lecture envoyée au deuxième écran : `at` est l'instant de la mesure (ms depuis 1970, haute précision). */
+export interface MonitorClock {
+  time: number
+  rate: number
+  at: number
+}
+
+/** Ce que la fenêtre principale envoie à celle du deuxième écran (seulement ce qui a changé). */
+export interface MonitorState {
+  project?: Project
+  /** Format de l'image, par exemple « 1728 / 1080 ». */
+  ratio?: string
+  clock?: MonitorClock
+}
 
 /** Ce que le preload expose à l'interface sous `window.api`. */
 export interface EasyEditAPI {
@@ -193,4 +210,18 @@ export interface EasyEditAPI {
   /** Transcrit un son mono à 16 kHz (Voz, sur le Mac) ; mots en secondes depuis son début. */
   transcribe(samples: Float32Array): Promise<{ text: string; start: number; end: number }[]>
   onTranscribeProgress(callback: (progress: { phase: TranscribePhase; fraction: number | null }) => void): () => void
+  /** Met la fenêtre en plein écran (sans changer d'espace sur macOS) ou l'en sort. */
+  setFullScreen(on: boolean): Promise<void>
+  /** Un autre écran que celui de la fenêtre est-il branché ? */
+  hasOtherDisplay(): Promise<boolean>
+  onOtherDisplay(callback: (present: boolean) => void): () => void
+  /** Ouvre ou ferme l'aperçu sur l'autre écran ; `onMonitor` dit s'il est ouvert. */
+  setMonitor(open: boolean): Promise<void>
+  onMonitor(callback: (open: boolean) => void): () => void
+  /** Fenêtre principale → deuxième écran (relayé par le processus principal). */
+  sendMonitor(state: MonitorState): void
+  onMonitorState(callback: (state: MonitorState) => void): () => void
+  /** Le deuxième écran demande l'état complet (à son ouverture). */
+  monitorReady(): void
+  onMonitorReady(callback: () => void): () => void
 }

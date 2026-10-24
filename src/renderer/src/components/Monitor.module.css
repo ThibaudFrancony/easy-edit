@@ -1,0 +1,14 @@
+.monitor {
+  height: 100%;
+  container-type: size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  cursor: none;
+}
+
+.frame {
+  position: relative;
+  overflow: hidden;
+}

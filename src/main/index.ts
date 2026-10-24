@@ -1,7 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import { BrowserWindow, Menu, app, dialog, ipcMain, shell } from 'electron'
-import type { ExportEvent, ExportRequest, MenuAction, OpenedProject } from '@shared/types'
+import { BrowserWindow, Menu, app, dialog, ipcMain, screen, shell } from 'electron'
+import type { ExportEvent, ExportRequest, MenuAction, MonitorState, OpenedProject } from '@shared/types'
 import { emptyProject } from '@shared/project'
 import { buildExport, exportsFolder, freeExportPath } from './export'
 import { stopTranscriber, transcribe } from './transcription'
@@ -35,13 +35,89 @@ function createWindow(): void {
     }
   })
   window.once('ready-to-show', () => window?.show())
-  window.on('closed', () => (window = null))
+  window.on('closed', () => {
+    window = null
+    monitor?.close()
+  })
+  window.on('move', sendOtherDisplay)
+  loadRenderer(window)
+}
 
+/** L'interface ; `#monitor` pour la fenêtre du deuxième écran. */
+function loadRenderer(target: BrowserWindow, hash?: string): void {
   if (process.env['ELECTRON_RENDERER_URL']) {
-    window.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    void target.loadURL(process.env['ELECTRON_RENDERER_URL'] + (hash ? `#${hash}` : ''))
   } else {
-    window.loadFile(join(__dirname, '../renderer/index.html'))
+    void target.loadFile(join(__dirname, '../renderer/index.html'), { hash })
   }
+}
+
+// ——— Plein écran et deuxième écran ———
+
+/** Taille de chaque fenêtre avant son passage en plein écran simple. */
+const boundsBeforeFullScreen = new WeakMap<BrowserWindow, Electron.Rectangle>()
+
+/**
+ * Plein écran « simple » sur macOS : pas de changement d'espace ni d'animation du système, l'aperçu gère la sienne.
+ * Electron ne rend pas toujours sa taille à la fenêtre en sortant : on la garde et on la remet nous-mêmes.
+ */
+function setFullScreen(target: BrowserWindow, on: boolean): void {
+  if (process.platform !== 'darwin') return target.setFullScreen(on)
+  if (target.isSimpleFullScreen() === on) return
+  if (on) boundsBeforeFullScreen.set(target, target.getBounds())
+  target.setSimpleFullScreen(on)
+  target.setWindowButtonVisibility(!on)
+  const bounds = boundsBeforeFullScreen.get(target)
+  if (!on && bounds) target.setBounds(bounds)
+}
+
+let monitor: BrowserWindow | null = null
+
+function otherDisplay(): Electron.Display | undefined {
+  const current = window ? screen.getDisplayMatching(window.getBounds()) : screen.getPrimaryDisplay()
+  return screen.getAllDisplays().find((display) => display.id !== current.id)
+}
+
+let lastOtherDisplay: boolean | null = null
+function sendOtherDisplay(): void {
+  const present = Boolean(otherDisplay())
+  if (present === lastOtherDisplay) return
+  lastOtherDisplay = present
+  send('other-display', present)
+}
+
+function openMonitor(): void {
+  const display = otherDisplay()
+  if (monitor || !display) return
+  const opened = new BrowserWindow({
+    ...display.bounds,
+    frame: false,
+    show: false,
+    backgroundColor: '#000000',
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      backgroundThrottling: false
+    }
+  })
+  monitor = opened
+  // Le clavier reste à la fenêtre de montage.
+  opened.once('ready-to-show', () => {
+    setFullScreen(opened, true)
+    opened.showInactive()
+  })
+  opened.on('closed', () => {
+    monitor = null
+    send('monitor', false)
+  })
+  loadRenderer(opened, 'monitor')
+  send('monitor', true)
+}
+
+function onDisplaysChanged(): void {
+  sendOtherDisplay()
+  // L'écran du moniteur a été débranché (ou la fenêtre principale l'a rejoint).
+  if (monitor && !otherDisplay()) monitor.close()
 }
 
 const send = (channel: string, payload: unknown): void => window?.webContents.send(channel, payload)
@@ -117,6 +193,8 @@ function buildMenu(): void {
           { label: 'Zoom arrière', accelerator: 'CmdOrCtrl+-', click: menuAction('zoom-out') },
           { label: 'Ajuster la timeline', accelerator: 'Shift+Z', registerAccelerator: false, click: menuAction('zoom-fit') },
           { type: 'separator' },
+          { label: 'Aperçu en plein écran', accelerator: 'F', registerAccelerator: false, click: menuAction('fullscreen') },
+          { label: 'Aperçu sur l\'autre écran', accelerator: 'Shift+F', registerAccelerator: false, click: menuAction('monitor') },
           { role: 'togglefullscreen' },
           ...(app.isPackaged ? [] : [{ role: 'toggleDevTools' as const }])
         ]
@@ -149,6 +227,14 @@ ipcMain.handle('clips:open-folder', async () => {
   await mkdir(clipsFolder, { recursive: true })
   await shell.openPath(clipsFolder)
 })
+
+ipcMain.handle('window:fullscreen', (_event, on: boolean) => {
+  if (window) setFullScreen(window, on)
+})
+ipcMain.handle('displays:other', () => Boolean(otherDisplay()))
+ipcMain.handle('monitor:set', (_event, open: boolean) => (open ? openMonitor() : monitor?.close()))
+ipcMain.on('monitor:state', (_event, state: MonitorState) => monitor?.webContents.send('monitor-state', state))
+ipcMain.on('monitor:ready', () => send('monitor-ready', null))
 
 // ——— Transcription ———
 
@@ -197,6 +283,8 @@ app.whenReady().then(() => {
   handleMediaProtocol()
   buildMenu()
   createWindow()
+  screen.on('display-added', onDisplaysChanged)
+  screen.on('display-removed', onDisplaysChanged)
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

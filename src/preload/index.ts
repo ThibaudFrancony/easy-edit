@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { EasyEditAPI, ExportEvent, MenuAction, OpenedProject, TranscribePhase } from '@shared/types'
+import type { EasyEditAPI, ExportEvent, MenuAction, MonitorState, OpenedProject, TranscribePhase } from '@shared/types'
 import { toMediaURL } from '@shared/media-url'
 
 function listen<T>(channel: string, callback: (payload: T) => void): () => void {
@@ -31,7 +31,16 @@ const api: EasyEditAPI = {
   cancelExport: () => ipcRenderer.invoke('export:cancel'),
   onExport: (callback) => listen<ExportEvent>('export', callback),
   transcribe: (samples) => ipcRenderer.invoke('transcribe', samples),
-  onTranscribeProgress: (callback) => listen<{ phase: TranscribePhase; fraction: number | null }>('transcribe-progress', callback)
+  onTranscribeProgress: (callback) => listen<{ phase: TranscribePhase; fraction: number | null }>('transcribe-progress', callback),
+  setFullScreen: (on) => ipcRenderer.invoke('window:fullscreen', on),
+  hasOtherDisplay: () => ipcRenderer.invoke('displays:other'),
+  onOtherDisplay: (callback) => listen<boolean>('other-display', callback),
+  setMonitor: (open) => ipcRenderer.invoke('monitor:set', open),
+  onMonitor: (callback) => listen<boolean>('monitor', callback),
+  sendMonitor: (state) => ipcRenderer.send('monitor:state', state),
+  onMonitorState: (callback) => listen<MonitorState>('monitor-state', callback),
+  monitorReady: () => ipcRenderer.send('monitor:ready'),
+  onMonitorReady: (callback) => listen<null>('monitor-ready', () => callback())
 }
 
 contextBridge.exposeInMainWorld('api', api)

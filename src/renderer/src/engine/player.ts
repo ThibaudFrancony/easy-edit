@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Lane, Project, Segment } from '@shared/types'
+import type { Lane, MonitorClock, Project, Segment } from '@shared/types'
 import { projectDuration } from '@shared/project'
 
 // Lecture de la timeline. Le temps vient de l'horloge audio (AudioContext) : c'est la référence la plus stable.
@@ -17,6 +17,9 @@ export const usePlayback = create<PlaybackState>()(() => ({ time: 0, rate: 0, du
 /** Image par image : les clips de ReplayClip tournent à environ 60 i/s. */
 export const FRAME = 1 / 60
 
+/** Instant présent en ms depuis 1970, au dixième de ms : comparable d'une fenêtre à l'autre. */
+export const epoch = (): number => performance.timeOrigin + performance.now()
+
 class Player {
   private context = new AudioContext({ latencyHint: 'interactive' })
   private laneGains = new Map<string, GainNode>()
@@ -27,11 +30,38 @@ class Player {
   private anchorClock = 0
   private rate = 0
   private frame = 0
+  /** Deuxième écran : l'horloge vient de la fenêtre principale (`follow`), sans son. */
+  private follower = false
+  private anchorAt = 0
+  private clockListeners = new Set<() => void>()
 
   /** Temps courant de la timeline, lu à chaque image par l'aperçu et le curseur. */
   time(): number {
     if (this.rate === 0) return this.anchorTime
-    return this.clamp(this.anchorTime + (this.context.currentTime - this.anchorClock) * this.rate)
+    const elapsed = this.follower ? (epoch() - this.anchorAt) / 1000 : this.context.currentTime - this.anchorClock
+    return this.clamp(this.anchorTime + elapsed * this.rate)
+  }
+
+  /** L'horloge à cet instant, pour la recopier ailleurs. */
+  clock(): MonitorClock {
+    return { time: this.time(), rate: this.rate, at: epoch() }
+  }
+
+  /** Appelé à chaque lecture, pause ou saut (pas à chaque image). */
+  onClock(listener: () => void): () => void {
+    this.clockListeners.add(listener)
+    return () => this.clockListeners.delete(listener)
+  }
+
+  /** Suit l'horloge d'une autre fenêtre : ce lecteur ne joue alors plus aucun son. */
+  follow(clock: MonitorClock): void {
+    this.follower = true
+    this.anchorTime = clock.time
+    this.anchorAt = clock.at
+    this.rate = clock.rate
+    usePlayback.setState({ rate: clock.rate, time: this.time() })
+    cancelAnimationFrame(this.frame)
+    if (clock.rate !== 0) this.frame = requestAnimationFrame(this.tick)
   }
 
   get playing(): boolean {
@@ -47,6 +77,7 @@ class Player {
     const structureChanged = project.segments !== this.project.segments
     this.project = project
     usePlayback.setState({ duration: projectDuration(project) })
+    if (this.follower) return
     for (const lane of project.lanes) this.applyGain(lane)
     for (const segment of this.audioSegments()) void this.buffer(segment)
     if (structureChanged && this.rate === 1) this.scheduleAudio()
@@ -74,6 +105,7 @@ class Player {
     usePlayback.setState({ rate, time: this.anchorTime })
     cancelAnimationFrame(this.frame)
     this.frame = requestAnimationFrame(this.tick)
+    this.clockChanged()
   }
 
   pause(): void {
@@ -82,6 +114,7 @@ class Player {
     this.stopAudio()
     cancelAnimationFrame(this.frame)
     usePlayback.setState({ rate: 0, time: this.anchorTime })
+    this.clockChanged()
   }
 
   seek(time: number): void {
@@ -89,6 +122,7 @@ class Player {
     this.anchorClock = this.context.currentTime
     if (this.rate === 1) this.scheduleAudio()
     usePlayback.setState({ time: this.anchorTime })
+    this.clockChanged()
   }
 
   step(frames: number): void {
@@ -114,6 +148,10 @@ class Player {
     }
     usePlayback.setState({ time })
     this.frame = requestAnimationFrame(this.tick)
+  }
+
+  private clockChanged(): void {
+    for (const listener of this.clockListeners) listener()
   }
 
   private clamp(time: number): number {

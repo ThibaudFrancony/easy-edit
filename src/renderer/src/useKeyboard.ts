@@ -5,6 +5,7 @@ import { deleteSelection, selectAll, splitAtPlayhead, toggleLinkSelection } from
 import { useCanvas } from '@/state/canvas'
 import { useExport } from '@/state/export'
 import { useProject } from '@/state/project'
+import { setFullscreen, toggleFullscreen, toggleMonitor, useScreens } from '@/state/screens'
 import { useTimeline } from '@/state/timeline'
 
 /**
@@ -37,6 +38,7 @@ export function useKeyboard(): void {
             k: () => player.shuttle(0),
             l: () => player.shuttle(1),
             s: splitAtPlayhead,
+            f: shift ? toggleMonitor : toggleFullscreen,
             z: shift ? () => useTimeline.getState().zoomToFit(projectDuration(useProject.getState().project)) : undefined,
             Backspace: () => deleteSelection(shift),
             Delete: () => deleteSelection(shift),
@@ -45,6 +47,7 @@ export function useKeyboard(): void {
             Home: () => player.seek(0),
             End: () => player.seek(usePlayback.getState().duration),
             Escape: () => {
+              if (useScreens.getState().fullscreen) return setFullscreen(false)
               if (useCanvas.getState().editing) return useCanvas.getState().stopEditing()
               useTimeline.getState().setSelection(new Set())
               useTimeline.getState().inspect(null)

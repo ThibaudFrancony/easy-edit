@@ -80,9 +80,12 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - [x] « Appliquer à tous » (barre de cadrage, ou clic droit « Appliquer à toute la piste ») : tous les sous-titres de la même piste prennent la place et la taille de celui-ci, en une étape d'annulation.
 - [x] Clic droit sur le nom d'une piste : « Supprimer la piste » (annulable).
 
+## Lot 8 : plein écran de l'aperçu ✓
+
+- [x] F (ou le bouton de la barre de lecture) : l'aperçu grandit en ressort jusqu'à remplir l'écran, sur fond noir. Les commandes de lecture apparaissent quand la souris bouge et disparaissent après 2 s. Échap, F ou double-clic pour sortir. Les raccourcis de lecture marchent toujours.
+- [x] Deuxième écran (⇧F, ou le bouton qui n'apparaît qu'avec un écran branché) : l'image seule en plein écran sur l'autre écran, comme un moniteur de contrôle, pendant que le montage continue sur l'écran principal. Une seule horloge et le son dans la fenêtre principale.
+- [x] Débrancher l'écran ferme le moniteur ; fermer la fenêtre principale le ferme aussi.
+
 ## Plus tard
 
-- Réordonner les pistes en les glissant.
-- Fondus audio et vidéo.
-- Clips de tailles différentes dans un même montage (pour l'instant, l'aperçu prend le format du premier clip).
-- Normalisation plus fidèle (pondération K des LUFS) et calcul dans un worker si les projets deviennent longs.
+Les idées pas encore planifiées sont dans [IDEES.md](IDEES.md).

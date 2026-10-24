@@ -24,6 +24,9 @@ const paths = {
   levels: ['M4 10v4', 'M9 6v12', 'M14 8v8', 'M19 10v4'],
   music: ['M9 18V5l12-2v13', 'M6 18m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0', 'M18 16m-3 0a3 3 0 1 0 6 0a3 3 0 1 0-6 0'],
   plus: ['M12 5v14', 'M5 12h14'],
+  fullscreen: ['M4 9V4h5', 'M20 9V4h-5', 'M4 15v5h5', 'M20 15v5h-5'],
+  'fullscreen-exit': ['M9 4v5H4', 'M15 4v5h5', 'M9 20v-5H4', 'M15 20v-5h5'],
+  display: ['M3 4h18v12H3z', 'M8 20h8', 'M12 16v4'],
   folder: ['M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']
 } as const
 
