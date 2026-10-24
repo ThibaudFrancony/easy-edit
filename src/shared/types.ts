@@ -1,9 +1,10 @@
 // Types partagés entre le processus principal (Node) et l'interface (React).
 // Tous les temps sont en secondes.
 
-/** Un fichier vidéo du dossier de clips. */
-export interface ClipFile {
+/** Un fichier de la bibliothèque : un clip vidéo (dossier des clips) ou un son importé (bande son). */
+export interface LibraryFile {
   path: string
+  kind: 'video' | 'audio'
   createdAt: number
   modifiedAt: number
   size: number
@@ -107,14 +108,16 @@ export type MenuAction =
 
 /** Ce que le preload expose à l'interface sous `window.api`. */
 export interface EasyEditAPI {
-  listClips(): Promise<ClipFile[]>
+  listFiles(): Promise<LibraryFile[]>
   clipDetails(path: string): Promise<ClipDetails>
   /** URL `media://` d'une vignette JPEG, générée puis gardée en cache. */
   thumbnail(path: string): Promise<string>
   /** URL `media://` d'une piste audio extraite du clip, gardée en cache. */
   audioTrack(path: string, stream: number): Promise<string>
-  /** Fenêtre de choix de fichiers audio (fonds sonores). */
-  pickAudioFiles(): Promise<string[]>
+  /** Copie des sons dans la bibliothèque ; renvoie leurs nouveaux chemins (les fichiers non audio sont ignorés). */
+  importSounds(paths: string[]): Promise<string[]>
+  /** Fenêtre de choix de sons, importés dans la bibliothèque ; renvoie leurs nouveaux chemins. */
+  pickSounds(): Promise<string[]>
   /** Chemin d'un fichier glissé depuis le Finder. */
   pathForFile(file: File): string
   /** URL `media://` pour lire directement un fichier. */

@@ -1,5 +1,5 @@
 import type { ClipDetails, Lane } from '@shared/types'
-import { insertAudioFile, moveSegments, removeLane, removeSegments, splitAt, toggleLink } from '@shared/project'
+import { addMusicLane, insertAudioFile, moveSegments, removeLane, removeSegments, splitAt, toggleLink } from '@shared/project'
 import { measureLoudness, normalizationGains } from '@/engine/loudness'
 import { player } from '@/engine/player'
 import { useProject } from './project'
@@ -81,6 +81,15 @@ export function toggleLaneNormalized(laneId: string): void {
 export function renameLane(laneId: string, name: string): void {
   const trimmed = name.trim()
   if (trimmed) updateLane(laneId, (lane) => (lane.name = trimmed))
+}
+
+/** Bouton + sous les pistes : une piste de fond sonore vide, prête à recevoir des sons. */
+export function addEmptyLane(): void {
+  let laneId = ''
+  useProject.getState().update((draft) => {
+    laneId = addMusicLane(draft)
+  })
+  useTimeline.getState().inspect(laneId)
 }
 
 export function deleteLane(laneId: string): void {

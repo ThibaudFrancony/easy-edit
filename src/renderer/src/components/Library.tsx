@@ -1,23 +1,60 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ClipFile } from '@shared/types'
+import type { LibraryFile } from '@shared/types'
 import { thumbnailURL, useLibrary } from '@/state/library'
-import { clipTime, shortDuration } from '@/lib/format'
+import { clipTime, fileName, shortDuration } from '@/lib/format'
 import { fade, rise, standard } from '@/lib/motion'
 import { Icon } from './Icon'
+import { Waveform } from './timeline/Waveform'
 import styles from './Library.module.css'
 
 export const CLIP_DRAG_TYPE = 'application/x-easyedit-clip'
 
+const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg)$/i
+
+export function isAudioFile(path: string): boolean {
+  return AUDIO_EXTENSIONS.test(path)
+}
+
+/** Sons glissés depuis le Finder (fichiers non audio ignorés). */
+export function droppedAudioPaths(event: React.DragEvent): string[] {
+  return [...event.dataTransfer.files].map((file) => window.api.pathForFile(file)).filter(isAudioFile)
+}
+
 export function Library(): React.JSX.Element {
-  const clips = useLibrary((s) => s.clips)
+  const files = useLibrary((s) => s.files)
   const loaded = useLibrary((s) => s.loaded)
+  const importSounds = useLibrary((s) => s.importSounds)
+  const [dropping, setDropping] = useState(false)
 
   return (
-    <aside className={styles.library}>
-      <div className={styles.title}>Clips</div>
+    <aside
+      className={styles.library}
+      data-dropping={dropping}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes('Files')) return
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+        setDropping(true)
+      }}
+      onDragLeave={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false)
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        setDropping(false)
+        const paths = droppedAudioPaths(event)
+        if (paths.length > 0) void importSounds(paths)
+      }}
+    >
+      <div className={styles.header}>
+        <span className={styles.title}>Fichiers</span>
+        <button className="icon-button" aria-label="Importer un son" title="Importer un son" onClick={() => void window.api.pickSounds().then(() => useLibrary.getState().refresh())}>
+          <Icon name="plus" size={14} />
+        </button>
+      </div>
       <AnimatePresence mode="wait">
-        {loaded && clips.length === 0 ? (
+        {loaded && files.length === 0 ? (
           <motion.div key="empty" className={styles.empty} {...rise} transition={standard}>
             <button className={styles.openFolder} onClick={() => window.api.openClipsFolder()}>
               <Icon name="folder" />
@@ -27,8 +64,8 @@ export function Library(): React.JSX.Element {
         ) : (
           <motion.div key="grid" className={styles.grid} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fade}>
             <AnimatePresence>
-              {clips.map((clip, index) => (
-                <ClipCard key={clip.path} clip={clip} index={index} />
+              {files.map((file, index) => (
+                <FileCard key={file.path} file={file} index={index} />
               ))}
             </AnimatePresence>
           </motion.div>
@@ -38,19 +75,11 @@ export function Library(): React.JSX.Element {
   )
 }
 
-function ClipCard({ clip, index }: { clip: ClipFile; index: number }): React.JSX.Element {
-  const duration = useLibrary((s) => s.details[clip.path]?.duration)
+function FileCard({ file, index }: { file: LibraryFile; index: number }): React.JSX.Element {
+  const duration = useLibrary((s) => s.details[file.path]?.duration)
+  const stream = useLibrary((s) => s.details[file.path]?.audioTracks[0]?.stream)
   const setDragged = useLibrary((s) => s.setDragged)
-  const [thumbnail, setThumbnail] = useState<string | null>(null)
-  const compressed = clip.path.toLowerCase().includes('compressé')
-
-  useEffect(() => {
-    let alive = true
-    thumbnailURL(clip.path).then((url) => alive && setThumbnail(url), () => {})
-    return () => {
-      alive = false
-    }
-  }, [clip.path])
+  const audio = file.kind === 'audio'
 
   return (
     <motion.div layout {...rise} transition={{ ...standard, delay: Math.min(index, 12) * 0.03 }}>
@@ -59,23 +88,45 @@ function ClipCard({ clip, index }: { clip: ClipFile; index: number }): React.JSX
         className={styles.card}
         draggable
         onDragStart={(event) => {
-          event.dataTransfer.setData(CLIP_DRAG_TYPE, clip.path)
+          event.dataTransfer.setData(CLIP_DRAG_TYPE, file.path)
           event.dataTransfer.effectAllowed = 'copy'
-          setDragged(clip)
+          setDragged(file)
         }}
         onDragEnd={() => setDragged(null)}
       >
-      <div className={styles.thumb}>
-        <AnimatePresence>
-          {thumbnail && <motion.img key={thumbnail} src={thumbnail} alt="" draggable={false} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fade} />}
-        </AnimatePresence>
-        {duration !== undefined && <span className={`${styles.badge} mono`}>{shortDuration(duration)}</span>}
-      </div>
-      <span className={styles.name}>
-        {clipTime(clip.createdAt)}
-        {compressed && <span className={styles.tag}>compressé</span>}
-      </span>
+        <div className={styles.thumb} data-audio={audio}>
+          {audio ? (
+            stream !== undefined && duration !== undefined ? (
+              <Waveform source={file.path} stream={stream} sourceStart={0} duration={duration} color="var(--music-wave)" />
+            ) : null
+          ) : (
+            <Thumbnail path={file.path} />
+          )}
+          {duration !== undefined && <span className={`${styles.badge} mono`}>{shortDuration(duration)}</span>}
+        </div>
+        <span className={styles.name}>
+          {audio ? <span className={styles.fileName}>{fileName(file.path)}</span> : clipTime(file.createdAt)}
+          {file.path.toLowerCase().includes('compressé') && <span className={styles.tag}>compressé</span>}
+        </span>
       </div>
     </motion.div>
+  )
+}
+
+function Thumbnail({ path }: { path: string }): React.JSX.Element {
+  const [url, setURL] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    thumbnailURL(path).then((value) => alive && setURL(value), () => {})
+    return () => {
+      alive = false
+    }
+  }, [path])
+
+  return (
+    <AnimatePresence>
+      {url && <motion.img key={url} src={url} alt="" draggable={false} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={fade} />}
+    </AnimatePresence>
   )
 }

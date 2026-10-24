@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdir, readdir, rename, stat } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, rename, stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, extname, join } from 'node:path'
@@ -8,7 +8,7 @@ import { promisify } from 'node:util'
 import { app } from 'electron'
 import ffmpegStatic from 'ffmpeg-static'
 import ffprobeStatic from 'ffprobe-static'
-import type { AudioTrackInfo, ClipDetails, ClipFile } from '@shared/types'
+import type { AudioTrackInfo, ClipDetails, LibraryFile } from '@shared/types'
 import { toMediaURL } from '@shared/media-url'
 import { readMp4Tracks } from './mp4'
 
@@ -20,6 +20,8 @@ export const ffmpeg = unpacked(ffmpegStatic as unknown as string)
 const ffprobe = unpacked(ffprobeStatic.path)
 
 export const clipsFolder = join(homedir(), 'Movies', 'Clips')
+/** Les sons importés y sont copiés : un projet ne dépend jamais d'un fichier qui traîne dans Téléchargements. */
+export const soundsFolder = join(homedir(), 'Movies', 'Easy Edit', 'Sons')
 // Pas « Cache » : ce dossier appartient au cache HTTP de Chromium.
 const cacheFolder = join(app.getPath('userData'), 'Media')
 const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.m4v'])
@@ -29,27 +31,58 @@ export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'aac', 'wav', 'aif', 'aiff', 'fla
 /** Ordre des pistes de ReplayClip, utilisé quand un fichier a perdu leurs noms (versions compressées). */
 const REPLAYCLIP_TRACK_NAMES = ['Mix', 'Micro', 'Minecraft', 'Discord', 'Autres sons']
 
-export async function listClips(): Promise<ClipFile[]> {
+const isAudioPath = (path: string): boolean => AUDIO_EXTENSIONS.includes(extname(path).slice(1).toLowerCase())
+
+/** Les clips vidéo puis les sons importés, chacun du plus récent au plus ancien. */
+export async function listFiles(): Promise<LibraryFile[]> {
+  const [videos, sounds] = await Promise.all([
+    filesIn(clipsFolder, 'video', (name) => VIDEO_EXTENSIONS.has(extname(name).toLowerCase())),
+    filesIn(soundsFolder, 'audio', isAudioPath)
+  ])
+  return [...videos, ...sounds]
+}
+
+async function filesIn(folder: string, kind: LibraryFile['kind'], accept: (name: string) => boolean): Promise<LibraryFile[]> {
   let names: string[]
   try {
-    names = await readdir(clipsFolder)
+    names = await readdir(folder)
   } catch {
     return []
   }
   const files = await Promise.all(
     names
-      .filter((name) => !name.startsWith('.') && VIDEO_EXTENSIONS.has(extname(name).toLowerCase()))
-      .map(async (name): Promise<ClipFile | null> => {
-        const path = join(clipsFolder, name)
+      .filter((name) => !name.startsWith('.') && accept(name))
+      .map(async (name): Promise<LibraryFile | null> => {
+        const path = join(folder, name)
         try {
           const info = await stat(path)
-          return { path, createdAt: info.birthtimeMs, modifiedAt: info.mtimeMs, size: info.size }
+          return { path, kind, createdAt: info.birthtimeMs, modifiedAt: info.mtimeMs, size: info.size }
         } catch {
           return null
         }
       })
   )
-  return files.filter((file): file is ClipFile => file !== null).sort((a, b) => b.createdAt - a.createdAt)
+  return files.filter((file): file is LibraryFile => file !== null).sort((a, b) => b.createdAt - a.createdAt)
+}
+
+/** Copie des sons dans la bibliothèque (« Titre 2.mp3 » si le nom est pris). Renvoie les chemins des copies. */
+export async function importSounds(paths: string[]): Promise<string[]> {
+  await mkdir(soundsFolder, { recursive: true })
+  const imported: string[] = []
+  for (const source of paths.filter(isAudioPath)) {
+    // Un son déjà dans la bibliothèque n'est pas copié une deuxième fois.
+    if (source.startsWith(soundsFolder + '/')) {
+      imported.push(source)
+      continue
+    }
+    const extension = extname(source)
+    const base = basename(source, extension)
+    let target = join(soundsFolder, base + extension)
+    for (let index = 2; existsSync(target); index++) target = join(soundsFolder, `${base} ${index}${extension}`)
+    await copyFile(source, target)
+    imported.push(target)
+  }
+  return imported
 }
 
 interface ProbeStream {

@@ -79,7 +79,7 @@ export function SegmentView({ segment, lane, pps, onContextMenu }: SegmentViewPr
 }
 
 function VideoContent({ segment }: { segment: Segment }): React.JSX.Element {
-  const created = useLibrary((s) => s.clips.find((c) => c.path === segment.source)?.createdAt)
+  const created = useLibrary((s) => s.files.find((f) => f.path === segment.source)?.createdAt)
   const [thumbnail, setThumbnail] = useState<string | null>(null)
 
   useEffect(() => {

@@ -9,11 +9,12 @@ function listen<T>(channel: string, callback: (payload: T) => void): () => void 
 }
 
 const api: EasyEditAPI = {
-  listClips: () => ipcRenderer.invoke('clips:list'),
+  listFiles: () => ipcRenderer.invoke('library:list'),
   clipDetails: (path) => ipcRenderer.invoke('clips:details', path),
   thumbnail: (path) => ipcRenderer.invoke('clips:thumbnail', path),
   audioTrack: (path, stream) => ipcRenderer.invoke('clips:audio-track', path, stream),
-  pickAudioFiles: () => ipcRenderer.invoke('audio:pick'),
+  importSounds: (paths) => ipcRenderer.invoke('library:import', paths),
+  pickSounds: () => ipcRenderer.invoke('library:pick-sounds'),
   pathForFile: (file) => webUtils.getPathForFile(file),
   mediaURL: (path) => toMediaURL(path),
   loadInitialProject: () => ipcRenderer.invoke('project:initial'),

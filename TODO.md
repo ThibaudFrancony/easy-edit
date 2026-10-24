@@ -12,7 +12,8 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - **Lier et délier** : la vidéo et les pistes audio d'un clip sont liées dès qu'on le place. ⌘L ou clic droit (« Délier », « Lier ») agit sur la sélection. Les morceaux liés bougent, se coupent et se suppriment ensemble. Une icône de chaîne les signale.
 - **Volume** : un clic sur le nom d'une piste ouvre ses réglages dans l'inspecteur, qui glisse depuis la droite. Le volume va de 0 à 200 % et vaut pour toute la piste.
 - **Normalisation** : un bouton ponctuel. Il mesure le niveau sonore des pistes incluses et règle leurs volumes pour qu'elles sonnent pareil. Ensuite on peut retoucher à la main. Chaque piste a un interrupteur « Normaliser » pour l'exclure.
-- **Fond sonore** : on glisse un fichier audio (mp3, m4a, wav, aiff) depuis le Finder sur la timeline, ou on clique sur le bouton + sous les pistes. Ça crée une nouvelle piste.
+- **Fond sonore** : le bouton + sous les pistes crée une piste vide (« Bande son »). On y glisse un son depuis la bibliothèque ou depuis le Finder. Un son glissé ailleurs crée sa propre piste.
+- **Bibliothèque « Fichiers »** : les clips vidéo de `~/Movies/Clips` et les sons importés. On importe un son en le glissant sur la bibliothèque ou avec le + de son en-tête ; il est copié dans `~/Movies/Easy Edit/Sons`, pour que le projet ne dépende pas d'un fichier qui traîne ailleurs.
 - **Projets** : chaque montage est un fichier projet (⌘N, ⌘O) enregistré automatiquement en continu. Le dernier projet se rouvre au lancement.
 - **Export** : en .mp4, dans un panneau qui glisse depuis le haut. C'est le dernier lot.
 

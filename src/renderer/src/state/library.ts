@@ -1,26 +1,35 @@
 import { create } from 'zustand'
-import type { ClipDetails, ClipFile } from '@shared/types'
+import type { ClipDetails, LibraryFile } from '@shared/types'
 
 interface LibraryState {
-  clips: ClipFile[]
+  /** Clips vidéo et sons importés. */
+  files: LibraryFile[]
   loaded: boolean
   details: Record<string, ClipDetails>
-  /** Le clip en train d'être glissé vers la timeline. */
-  dragged: ClipFile | null
+  /** Le fichier en train d'être glissé vers la timeline. */
+  dragged: LibraryFile | null
   refresh(): Promise<void>
-  setDragged(clip: ClipFile | null): void
+  /** Copie des sons dans la bibliothèque, puis la relit. Renvoie les chemins des copies. */
+  importSounds(paths: string[]): Promise<string[]>
+  setDragged(file: LibraryFile | null): void
 }
 
 export const useLibrary = create<LibraryState>()((set, get) => ({
-  clips: [],
+  files: [],
   loaded: false,
   details: {},
   dragged: null,
   refresh: async () => {
-    const clips = await window.api.listClips()
-    const same = clips.length === get().clips.length && clips.every((c, i) => c.path === get().clips[i]?.path && c.modifiedAt === get().clips[i]?.modifiedAt)
-    if (!same || !get().loaded) set({ clips, loaded: true })
-    await Promise.all(clips.filter((c) => !get().details[c.path]).map((c) => clipDetails(c.path).catch(() => null)))
+    const files = await window.api.listFiles()
+    const current = get().files
+    const same = files.length === current.length && files.every((f, i) => f.path === current[i]?.path && f.modifiedAt === current[i]?.modifiedAt)
+    if (!same || !get().loaded) set({ files, loaded: true })
+    await Promise.all(files.filter((f) => !get().details[f.path]).map((f) => clipDetails(f.path).catch(() => null)))
+  },
+  importSounds: async (paths) => {
+    const imported = await window.api.importSounds(paths)
+    if (imported.length > 0) await get().refresh()
+    return imported
   },
   setDragged: (dragged) => set({ dragged })
 }))

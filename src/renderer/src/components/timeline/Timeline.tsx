@@ -7,8 +7,8 @@ import { clipDetails, useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { LEADING_INSET, MAX_ZOOM, MIN_ZOOM, timeToX, useTimeline, xToTime } from '@/state/timeline'
 import { fade, quick, standard } from '@/lib/motion'
-import { addAudioFiles, normalizeLanes } from '@/state/editing'
-import { CLIP_DRAG_TYPE } from '../Library'
+import { addAudioFiles, addEmptyLane, normalizeLanes } from '@/state/editing'
+import { CLIP_DRAG_TYPE, droppedAudioPaths } from '../Library'
 import { Icon } from '../Icon'
 import { ContextMenu, type MenuPosition } from './ContextMenu'
 import { Ruler } from './Ruler'
@@ -110,13 +110,10 @@ export function Timeline(): React.JSX.Element {
             <motion.button
               layout
               className={styles.addLane}
-              aria-label="Ajouter un fond sonore"
-              title="Ajouter un fond sonore"
+              aria-label="Ajouter une piste"
+              title="Ajouter une piste"
               transition={standard}
-              onClick={async () => {
-                const paths = await window.api.pickAudioFiles()
-                if (paths.length > 0) await addAudioFiles(paths, player.time())
-              }}
+              onClick={addEmptyLane}
             >
               <Icon name="plus" size={14} />
             </motion.button>
@@ -145,10 +142,12 @@ export function Timeline(): React.JSX.Element {
             onDrop={async (event) => {
               event.preventDefault()
               setFileDrop(null)
+              const laneId = (event.target as HTMLElement).closest<HTMLElement>('[data-lane-id]')?.dataset.laneId
               if (event.dataTransfer.files.length > 0 && !event.dataTransfer.types.includes(CLIP_DRAG_TYPE)) {
-                const paths = [...event.dataTransfer.files].map((file) => window.api.pathForFile(file)).filter(isAudioFile)
-                const laneId = (event.target as HTMLElement).closest<HTMLElement>('[data-lane-id]')?.dataset.laneId
-                if (paths.length > 0) await addAudioFiles(paths, fileDropTime(event.clientX), laneId)
+                // Un son venu du Finder est d'abord copié dans la bibliothèque : le projet n'en dépend plus.
+                const time = fileDropTime(event.clientX)
+                const imported = await useLibrary.getState().importSounds(droppedAudioPaths(event))
+                if (imported.length > 0) await addAudioFiles(imported, time, laneId)
                 return
               }
               const path = event.dataTransfer.getData(CLIP_DRAG_TYPE)
@@ -157,7 +156,9 @@ export function Timeline(): React.JSX.Element {
               useLibrary.getState().setDragged(null)
               if (!path || !position) return
               const details = await clipDetails(path)
-              useProject.getState().update((draft) => insertClip(draft, details, position.start))
+              // Un son de la bibliothèque va sur la piste de fond sonore visée, sinon sur une nouvelle.
+              if (details.videoStream === null) await addAudioFiles([path], position.start, laneId)
+              else useProject.getState().update((draft) => insertClip(draft, details, position.start))
             }}
           >
             <div
@@ -337,11 +338,6 @@ function useWheelZoom(scrollRef: React.RefObject<HTMLDivElement | null>): void {
   }, [scrollRef])
 }
 
-const AUDIO_EXTENSIONS = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg)$/i
-
-function isAudioFile(path: string): boolean {
-  return AUDIO_EXTENSIONS.test(path)
-}
 
 /** Normalisation ponctuelle : un clic, les pistes incluses sont mises au même niveau (annulable avec ⌘Z). */
 function NormalizeButton({ disabled }: { disabled: boolean }): React.JSX.Element {

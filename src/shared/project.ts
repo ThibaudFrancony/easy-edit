@@ -198,3 +198,13 @@ export function removeLane(project: Project, laneId: string): void {
   project.lanes = project.lanes.filter((l) => l.id !== laneId)
   project.segments = project.segments.filter((s) => s.laneId !== laneId)
 }
+
+/** Ajoute une piste de fond sonore vide (« Bande son », « Bande son 2 »…). Renvoie son identifiant. */
+export function addMusicLane(project: Project): string {
+  const names = new Set(project.lanes.map((l) => l.name))
+  let name = 'Bande son'
+  for (let index = 2; names.has(name); index++) name = `Bande son ${index}`
+  const lane: Lane = { id: newID(), kind: 'audio', name, volume: 1, muted: false, normalized: true, music: true }
+  project.lanes.push(lane)
+  return lane.id
+}
