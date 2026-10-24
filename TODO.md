@@ -58,5 +58,4 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - Réordonner les pistes en les glissant.
 - Fondus audio et vidéo.
 - Clips de tailles différentes dans un même montage (pour l'instant, l'aperçu prend le format du premier clip).
-- Icône de l'app.
 - Normalisation plus fidèle (pondération K des LUFS) et calcul dans un worker si les projets deviennent longs.

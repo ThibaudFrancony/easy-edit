@@ -179,6 +179,8 @@ ipcMain.handle('export:start', async (_event, request: ExportRequest) => {
 })
 
 app.whenReady().then(() => {
+  // L'app empaquetée a son icône ; en développement, on remplace celle d'Electron dans le Dock.
+  if (!app.isPackaged) app.dock?.setIcon(join(__dirname, '../../resources/icon.png'))
   handleMediaProtocol()
   buildMenu()
   createWindow()

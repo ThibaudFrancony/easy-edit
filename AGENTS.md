@@ -65,6 +65,7 @@ Choisie le 23/10/2026 parmi trois maquettes : https://claude.ai/artifact/FkhRjvG
 - Rayons : 7 px pour les contrôles, 8 px pour l'aperçu, 5 px pour les morceaux. Espacements sur une grille de 4 px.
 - Hauteurs : barre du haut 48 px, piste vidéo 66 px, pistes audio 40 px, en-têtes de piste 128 px de large.
 - Icônes : traits fins (2 px), arrondis, en `currentColor`. Pas de bibliothèque d'icônes « fantaisie ».
+- Logo « Lecture coupée » (choisi le 24/10/2026, logo C du canevas de design) : un triangle de lecture tranché, moitié gauche blanc cassé, moitié droite orange, sur une icône `#16181D`. Source : `resources/icon.svg` ; version sans fond pour l'interface : `components/Logo.tsx`.
 
 ## Structure
 
@@ -80,7 +81,9 @@ src/
     state/         stores Zustand : projet (seule porte d'entrée des modifications), bibliothèque, timeline
     components/    Library, Preview, timeline/
     lib/           motion.ts (animations), format.ts
+resources/         icône de l'app : icon.svg (source), icon.icns et icon.png (générés par npm run icon)
 scripts/package.sh construit, signe et installe l'app
+scripts/icon.mjs   génère l'icône à partir du SVG
 ```
 
 - Toute modification du montage passe par `useProject.getState().update(draft => …)` : elle est annulable (⌘Z) et enregistrée automatiquement. Les actions de montage (couper, supprimer, lier…) sont dans `state/editing.ts` ; la sélection et le glissé en cours dans `state/timeline.ts`.
@@ -97,6 +100,7 @@ npm run dev          # l'app en développement, rechargement à chaud de l'inter
 npm run typecheck    # vérification TypeScript
 npm run app          # construit « Easy Edit.app » (signée localement)
 npm run install-app  # construit, installe dans /Applications et lance
+npm run icon         # régénère l'icône après une modification de resources/icon.svg
 ```
 
 Le processus principal (`src/main`) n'est pas rechargé à chaud : relancer `npm run dev` après l'avoir modifié. Il n'y a pas encore de tests automatiques.

@@ -10,7 +10,8 @@
     "build": "electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "app": "scripts/package.sh",
-    "install-app": "scripts/package.sh --install"
+    "install-app": "scripts/package.sh --install",
+    "icon": "node scripts/icon.mjs"
   },
   "build": {
     "appId": "com.thibaud.easyedit",
@@ -33,7 +34,8 @@
         "dir"
       ],
       "darkModeSupport": true,
-      "identity": null
+      "identity": null,
+      "icon": "resources/icon.icns"
     }
   },
   "dependencies": {
@@ -48,6 +50,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

@@ -12,6 +12,7 @@ import { ExportPanel } from './components/ExportPanel'
 import { Icon } from './components/Icon'
 import { Inspector } from './components/Inspector'
 import { Library } from './components/Library'
+import { Logo } from './components/Logo'
 import { Preview } from './components/Preview'
 import { Timeline } from './components/timeline/Timeline'
 import { useKeyboard } from './useKeyboard'
@@ -26,6 +27,7 @@ export function App(): React.JSX.Element {
   return (
     <div className={styles.app}>
       <header className={styles.topBar}>
+        <Logo size={16} />
         <span className={styles.appName}>Easy Edit</span>
         {path && (
           <>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Logo C « Lecture coupée » : un triangle de lecture tranché, la moitié droite en accent orange. -->
+  <defs>
+    <clipPath id="gauche"><rect x="0" y="0" width="548" height="1024"/></clipPath>
+    <clipPath id="droite"><rect x="584" y="0" width="440" height="1024"/></clipPath>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="#16181D" stroke="#2A2E36" stroke-width="6"/>
+  <g clip-path="url(#gauche)">
+    <path d="M372 316 L372 708 L728 512 Z" fill="#E8EAEE" stroke="#E8EAEE" stroke-width="64" stroke-linejoin="round"/>
+  </g>
+  <g clip-path="url(#droite)" transform="translate(22 0)">
+    <path d="M372 316 L372 708 L728 512 Z" fill="#FF6B2C" stroke="#FF6B2C" stroke-width="64" stroke-linejoin="round"/>
+  </g>
+</svg>
