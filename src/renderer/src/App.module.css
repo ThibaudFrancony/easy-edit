@@ -17,6 +17,27 @@
   -webkit-app-region: drag;
 }
 
+/* Windows : les boutons du système sont à droite, posés sur la barre (`titleBarOverlay`) ; on leur laisse leur place. */
+:global(:root[data-platform='win32']) .topBar {
+  padding: 0 calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100%) + 16px) 0 8px;
+}
+
+.menuButton {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  -webkit-app-region: no-drag;
+  transition: background 0.2s;
+}
+
+.menuButton:hover {
+  background: var(--hover);
+}
+
 .appName {
   font-weight: 600;
   letter-spacing: -0.01em;

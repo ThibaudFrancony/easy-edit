@@ -16,9 +16,27 @@ interface TranscriptionState {
   lane: string | null
   fraction: number | null
   error: string | null
+  /** « Quelle piste transcrire ? » est ouvert (par le bouton ou par le menu Plugins). */
+  picking: boolean
 }
 
-export const useTranscription = create<TranscriptionState>()(() => ({ running: false, phase: null, lane: null, fraction: null, error: null }))
+export const useTranscription = create<TranscriptionState>()(() => ({
+  running: false,
+  phase: null,
+  lane: null,
+  fraction: null,
+  error: null,
+  picking: false
+}))
+
+/** On peut transcrire s'il y a une piste audio et qu'aucune transcription n'est en cours. */
+export const canTranscribe = (): boolean =>
+  !useTranscription.getState().running && useProject.getState().project.lanes.some((l) => l.kind === 'audio')
+
+/** Ouvre ou ferme « Quelle piste transcrire ? ». */
+export function setPicking(picking: boolean): void {
+  useTranscription.setState({ picking: picking && canTranscribe() })
+}
 
 /**
  * Transcrit des pistes audio et pose leurs sous-titres sur une piste « Sous-titres · <piste> », tout en haut.

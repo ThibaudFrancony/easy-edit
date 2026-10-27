@@ -18,5 +18,5 @@ export function clipTime(timestamp: number): string {
 }
 
 export function fileName(path: string): string {
-  return path.split('/').pop()?.replace(/\.[^.]+$/, '') ?? path
+  return path.split(/[\\/]/).pop()?.replace(/\.[^.]+$/, '') ?? path
 }

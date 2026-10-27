@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { ExportQuality } from '@shared/types'
+import type { ExportQuality, ExportStep } from '@shared/types'
 import { usePlayback } from '@/engine/player'
 import { useExport } from '@/state/export'
 import { fade, quick, standard } from '@/lib/motion'
 import { fileName } from '@/lib/format'
+import { fileManager, thisComputer } from '@/lib/platform'
 import { Icon } from './Icon'
 import styles from './ExportPanel.module.css'
 
@@ -68,15 +69,20 @@ export function ExportPanel(): React.JSX.Element {
 }
 
 function Settings(): React.JSX.Element {
-  const { name, folder, quality, error, setName, setFolder, setQuality, start, hide } = useExport()
+  const { name, folder, quality, error, renderServer, remote, needsCode, setName, setFolder, setQuality, setRemote, submitCode, start, hide } =
+    useExport()
   const empty = usePlayback((s) => s.duration === 0)
+  const [code, setCode] = useState('')
+  const askCode = needsCode && remote && renderServer !== null
 
   return (
     <form
       className={styles.settings}
       onSubmit={(event) => {
         event.preventDefault()
-        if (!empty && name.trim()) start()
+        if (empty || !name.trim()) return
+        if (askCode) void submitCode(code)
+        else start()
       }}
     >
       <div className={styles.header}>
@@ -108,6 +114,60 @@ function Settings(): React.JSX.Element {
         </button>
       </div>
 
+      <AnimatePresence initial={false}>
+        {renderServer !== null && (
+          <motion.div
+            className={styles.reveal}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={standard}
+          >
+            <div className={styles.segmented} role="radiogroup" aria-label="Rendu">
+              {[
+                { value: false, label: thisComputer },
+                { value: true, label: renderServer }
+              ].map((option) => (
+                <button
+                  key={String(option.value)}
+                  type="button"
+                  role="radio"
+                  aria-checked={remote === option.value}
+                  className={styles.segment}
+                  onClick={() => setRemote(option.value)}
+                >
+                  {remote === option.value && <motion.span layoutId="export-target" className={styles.segmentHighlight} transition={quick} />}
+                  <span className={styles.segmentLabel}>{option.label}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence initial={false}>
+        {askCode && (
+          <motion.label
+            className={`${styles.field} ${styles.reveal}`}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 36 }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={standard}
+          >
+            <input
+              autoFocus
+              className="mono"
+              value={code}
+              inputMode="numeric"
+              maxLength={6}
+              placeholder={`Code de ${renderServer}`}
+              aria-label={`Code de ${renderServer}`}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
+            />
+          </motion.label>
+        )}
+      </AnimatePresence>
+
       <div className={styles.segmented} role="radiogroup" aria-label="Qualité">
         {QUALITIES.map((option) => (
           <button
@@ -132,7 +192,7 @@ function Settings(): React.JSX.Element {
         )}
       </AnimatePresence>
 
-      <button type="submit" className={styles.primary} disabled={empty || !name.trim()}>
+      <button type="submit" className={styles.primary} disabled={empty || !name.trim() || (askCode && code.length !== 6)}>
         <Icon name="export" size={15} />
         Exporter
       </button>
@@ -140,8 +200,14 @@ function Settings(): React.JSX.Element {
   )
 }
 
+/** Le nom de l'étape en cours ; rien pour un export simple sur cet ordinateur. */
+const STEP_LABELS: Record<ExportStep, string> = { upload: 'Envoi', blur: 'Motion blur', encode: 'Encodage', download: 'Réception' }
+
 function Progress(): React.JSX.Element {
   const fraction = useExport((s) => s.fraction)
+  const step = useExport((s) => s.step)
+  const remote = useExport((s) => s.remote && s.renderServer !== null)
+  const label = remote || step !== 'encode' ? STEP_LABELS[step] : null
   const cancel = useExport((s) => s.cancel)
   const name = useExport((s) => s.name)
 
@@ -149,7 +215,23 @@ function Progress(): React.JSX.Element {
     <div className={styles.progress}>
       <div className={styles.progressHeader}>
         <span className={styles.progressName}>{name}.mp4</span>
-        <span className="mono">{Math.floor(fraction * 100)} %</span>
+        <span className={styles.progressValue}>
+          <AnimatePresence initial={false} mode="popLayout">
+            {label && (
+              <motion.span
+                key={label}
+                className={styles.progressStep}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={quick}
+              >
+                {label}
+              </motion.span>
+            )}
+          </AnimatePresence>
+          <span className="mono">{Math.floor(fraction * 100)} %</span>
+        </span>
       </div>
       <div className={styles.bar}>
         <motion.div className={styles.barFill} animate={{ width: `${fraction * 100}%` }} transition={{ duration: 0.2, ease: 'linear' }} />
@@ -181,11 +263,11 @@ function Done(): React.JSX.Element {
           className={styles.primary}
           autoFocus
           onClick={() => {
-            if (output) void window.api.revealInFinder(output)
+            if (output) void window.api.revealFile(output)
             hide()
           }}
         >
-          Afficher dans le Finder
+          Afficher dans {fileManager}
         </button>
       </div>
     </div>

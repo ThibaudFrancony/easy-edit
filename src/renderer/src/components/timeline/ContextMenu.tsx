@@ -7,6 +7,7 @@ import { deleteLane, deleteSelection, splitAtPlayhead, toggleLinkSelection } fro
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { quick } from '@/lib/motion'
+import { shortcut } from '@/lib/platform'
 import { Icon, type IconName } from '../Icon'
 import styles from './ContextMenu.module.css'
 
@@ -101,9 +102,9 @@ function segmentItems(target: Segment | undefined, framable: boolean, linked: bo
   }
   items.push(
     { label: 'Couper au curseur', shortcut: 'S', icon: 'scissors', run: splitAtPlayhead, separated: items.length > 0 },
-    { label: linked ? 'Délier' : 'Lier', shortcut: '⌘L', icon: linked ? 'unlink' : 'link', run: toggleLinkSelection },
-    { label: 'Supprimer', shortcut: '⌫', icon: 'trash', run: () => deleteSelection(false) },
-    { label: 'Supprimer et refermer', shortcut: '⇧⌫', icon: 'trash', run: () => deleteSelection(true) }
+    { label: linked ? 'Délier' : 'Lier', shortcut: shortcut('⌘L'), icon: linked ? 'unlink' : 'link', run: toggleLinkSelection },
+    { label: 'Supprimer', shortcut: shortcut('⌫'), icon: 'trash', run: () => deleteSelection(false) },
+    { label: 'Supprimer et refermer', shortcut: shortcut('⇧⌫'), icon: 'trash', run: () => deleteSelection(true) }
   )
   return items
 }

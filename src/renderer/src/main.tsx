@@ -15,6 +15,9 @@ import { useLibrary } from './state/library'
 import { useProject } from './state/project'
 import { useTimeline } from './state/timeline'
 
+// Les styles propres à un système (barre de titre de Windows) s'appuient sur cet attribut.
+document.documentElement.dataset.platform = window.api.platform
+
 // La même interface sert à la fenêtre du deuxième écran, qui n'affiche que l'image.
 const isMonitor = location.hash === '#monitor'
 

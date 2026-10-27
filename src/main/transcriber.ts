@@ -8,7 +8,7 @@ let loading: Promise<Voz> | null = null
 
 const post = (message: TranscriberOut): void => process.parentPort.postMessage(message)
 
-/** Chargé une fois (téléchargé la première fois, puis lu depuis ~/Library/Caches/desert-ant-models). */
+/** Chargé une fois (téléchargé la première fois, puis lu depuis le cache de l’utilisateur). */
 function model(id: number): Promise<Voz> {
   if (!loading) {
     post({ id, kind: 'progress', phase: 'download', fraction: null })

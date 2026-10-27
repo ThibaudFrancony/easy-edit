@@ -10,7 +10,7 @@ import styles from './Library.module.css'
 
 export const CLIP_DRAG_TYPE = 'application/x-easyedit-clip'
 
-const IMPORTABLE = /\.(mp3|m4a|aac|wav|aiff?|flac|ogg|png|jpe?g|webp|bmp|tiff?)$/i
+const IMPORTABLE = /\.(mp4|mov|m4v|webm|mkv|mp3|m4a|aac|wav|aiff?|flac|ogg|png|jpe?g|webp|bmp|tiff?)$/i
 
 /** Ordre d'affichage des sections ; une section sans fichier n'apparaît pas. */
 const SECTIONS: { kind: LibraryFile['kind']; title: string }[] = [
@@ -19,7 +19,7 @@ const SECTIONS: { kind: LibraryFile['kind']; title: string }[] = [
   { kind: 'audio', title: 'Sons' }
 ]
 
-/** Sons et images glissés depuis le Finder (les autres fichiers sont ignorés). */
+/** Vidéos, sons et images glissés depuis le Finder ou l'Explorateur (les autres fichiers sont ignorés). */
 export function droppedMediaPaths(event: React.DragEvent): string[] {
   return [...event.dataTransfer.files].map((file) => window.api.pathForFile(file)).filter((path) => IMPORTABLE.test(path))
 }
@@ -57,8 +57,8 @@ export function Library(): React.JSX.Element {
         <span className={styles.title}>Fichiers</span>
         <button
           className="icon-button"
-          aria-label="Importer un son ou une image"
-          title="Importer un son ou une image"
+          aria-label="Importer des vidéos, des sons ou des images"
+          title="Importer"
           onClick={() => void window.api.pickFiles().then(() => useLibrary.getState().refresh())}
         >
           <Icon name="plus" size={14} />
@@ -101,6 +101,8 @@ function FileCard({ file, index }: { file: LibraryFile; index: number }): React.
   const setDragged = useLibrary((s) => s.setDragged)
   const audio = file.kind === 'audio'
   const image = file.kind === 'image'
+  // Un clip de ReplayClip (« Clip du 21-10-2026 à 23h17m28 ») se reconnaît à son heure ; le reste, à son nom.
+  const replayClip = file.kind === 'video' && fileName(file.path).startsWith('Clip du ')
 
   return (
     <motion.div layout {...rise} transition={{ ...standard, delay: Math.min(index, 12) * 0.03 }}>
@@ -128,7 +130,7 @@ function FileCard({ file, index }: { file: LibraryFile; index: number }): React.
           {duration !== undefined && !image && <span className={`${styles.badge} mono`}>{shortDuration(duration)}</span>}
         </div>
         <span className={styles.name}>
-          {audio || image ? <span className={styles.fileName}>{fileName(file.path)}</span> : clipTime(file.createdAt)}
+          {replayClip ? clipTime(file.createdAt) : <span className={styles.fileName}>{fileName(file.path)}</span>}
           {file.path.toLowerCase().includes('compressé') && <span className={styles.tag}>compressé</span>}
         </span>
       </div>

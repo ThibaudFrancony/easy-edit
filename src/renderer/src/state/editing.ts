@@ -1,4 +1,5 @@
-import type { CaptionLook, ClipDetails, Lane } from '@shared/types'
+import type { CaptionLook, ClipDetails, Lane, MotionBlur } from '@shared/types'
+import { DEFAULT_MOTION_BLUR } from '@shared/motion-blur'
 import {
   addMusicLane, addVideoLane, insertAudioFile, insertClip, insertImage, moveSegments, removeLane, removeSegments, splitAt, toggleLink, trimSegment
 } from '@shared/project'
@@ -84,6 +85,30 @@ export function toggleLaneNormalized(laneId: string): void {
 /** Style et couleur d'accent des sous-titres d'une piste. */
 export function setLaneLook(laneId: string, look: CaptionLook): void {
   updateLane(laneId, (lane) => (lane.look = look))
+}
+
+/** Réglages du motion blur d'une piste vidéo ; un curseur qu'on glisse passe un `mergeKey` (une seule annulation). */
+export function setLaneMotionBlur(laneId: string, change: Partial<MotionBlur>, mergeKey?: string): void {
+  updateLane(laneId, (lane) => (lane.motionBlur = { ...(lane.motionBlur ?? DEFAULT_MOTION_BLUR), ...change }), mergeKey)
+}
+
+/**
+ * Plugins › Motion blur : ouvre les réglages de la piste vidéo visée (celle de l'inspecteur, sinon celle des
+ * morceaux sélectionnés, sinon la plus haute), et allume le flou s'il n'y en avait pas encore.
+ */
+export function openMotionBlur(): void {
+  const { project } = useProject.getState()
+  const { inspectedLane, selection: selected, inspect } = useTimeline.getState()
+  const candidates = project.lanes.filter((l) => l.kind === 'video' && !l.look)
+  const selectedLanes = project.segments.filter((s) => selected.has(s.id)).map((s) => s.laneId)
+  const lane =
+    candidates.find((l) => l.id === inspectedLane) ??
+    candidates.find((l) => selectedLanes.includes(l.id)) ??
+    candidates.find((l) => project.segments.some((s) => s.laneId === l.id)) ??
+    candidates[0]
+  if (!lane) return
+  if (!lane.motionBlur?.enabled) setLaneMotionBlur(lane.id, { enabled: true })
+  inspect(lane.id)
 }
 
 export function renameLane(laneId: string, name: string): void {

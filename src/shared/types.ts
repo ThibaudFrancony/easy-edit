@@ -53,6 +53,22 @@ export interface Lane {
    * le style et la couleur d'accent de ses sous-titres.
    */
   look?: CaptionLook
+  /** Piste vidéo : flou de mouvement appliqué à l'export (plugin « Motion blur »). Absent : pas de flou. */
+  motionBlur?: MotionBlur
+}
+
+/** Réglages du flou de mouvement d'une piste vidéo (voir `src/shared/motion-blur.ts`). */
+export interface MotionBlur {
+  /** Coupé, le flou garde ses réglages pour quand on le rallume. */
+  enabled: boolean
+  /** Durée d'obturation, de 0 à 1 (0,5 : obturateur à 180°). */
+  amount: number
+  /** Images intermédiaires calculées entre deux vraies images. */
+  quality: 4 | 8 | 16
+  /** « gaussian » : les images proches de l'instant montré comptent plus, le flou est plus doux. */
+  weighting: 'equal' | 'gaussian'
+  /** Cadence des images floutées. */
+  fps: 60 | 30
 }
 
 /** Style des sous-titres d'une piste (voir `CAPTION_STYLES`) et couleur du mot prononcé (`null` : sans accent). */
@@ -130,14 +146,24 @@ export interface ExportRequest {
   folder: string
   name: string
   quality: ExportQuality
+  /** Rendu sur le PC Linux de la maison plutôt que sur cet ordinateur. */
+  remote: boolean
 }
+
+/**
+ * Étape d'un export : envoi des fichiers au PC de rendu, motion blur, encodage de la vidéo finale, réception de la
+ * vidéo depuis le PC de rendu.
+ */
+export type ExportStep = 'upload' | 'blur' | 'encode' | 'download'
 
 /** Ce que l'interface apprend de l'export en cours. */
 export type ExportEvent =
-  | { type: 'progress'; fraction: number }
+  | { type: 'progress'; fraction: number; step: ExportStep }
   | { type: 'done'; path: string }
   | { type: 'error'; message: string }
   | { type: 'cancelled' }
+  /** Le PC de rendu attend son code d'appairage : l'interface le demande, puis relance l'export. */
+  | { type: 'code-needed' }
 
 /** Étape d'une transcription : téléchargement du modèle (la première fois), chargement, transcription. */
 export type TranscribePhase = 'download' | 'load' | 'transcribe'
@@ -157,6 +183,8 @@ export type MenuAction =
   | 'export'
   | 'fullscreen'
   | 'monitor'
+  | 'transcribe'
+  | 'motion-blur'
 
 /** Horloge de lecture envoyée au deuxième écran : `at` est l'instant de la mesure (ms depuis 1970, haute précision). */
 export interface MonitorClock {
@@ -175,17 +203,21 @@ export interface MonitorState {
 
 /** Ce que le preload expose à l'interface sous `window.api`. */
 export interface EasyEditAPI {
+  /** Système de l'ordinateur : les raccourcis et la barre de titre en dépendent. */
+  platform: 'darwin' | 'win32' | 'linux'
+  /** Sur Windows, ouvre le menu de l'app sous le logo (coordonnées de la fenêtre). */
+  popupMenu(x: number, y: number): Promise<void>
   listFiles(): Promise<LibraryFile[]>
   clipDetails(path: string): Promise<ClipDetails>
   /** URL `media://` d'une vignette JPEG, générée puis gardée en cache. */
   thumbnail(path: string): Promise<string>
   /** URL `media://` d'une piste audio extraite du clip, gardée en cache. */
   audioTrack(path: string, stream: number): Promise<string>
-  /** Copie des sons et des images dans la bibliothèque ; renvoie leurs nouveaux chemins (les autres fichiers sont ignorés). */
+  /** Copie des vidéos, des sons et des images dans la bibliothèque ; renvoie leurs nouveaux chemins (les autres fichiers sont ignorés). */
   importFiles(paths: string[]): Promise<string[]>
-  /** Fenêtre de choix de sons et d'images, importés dans la bibliothèque ; renvoie leurs nouveaux chemins. */
+  /** Fenêtre de choix de vidéos, de sons et d'images, importés dans la bibliothèque ; renvoie leurs nouveaux chemins. */
   pickFiles(): Promise<string[]>
-  /** Chemin d'un fichier glissé depuis le Finder. */
+  /** Chemin d'un fichier glissé depuis le Finder ou l'Explorateur. */
   pathForFile(file: File): string
   /** URL `media://` pour lire directement un fichier. */
   mediaURL(path: string): string
@@ -193,8 +225,8 @@ export interface EasyEditAPI {
   saveProject(opened: OpenedProject): Promise<void>
   newProject(): Promise<OpenedProject>
   openProject(): Promise<OpenedProject | null>
-  revealInFinder(path: string): Promise<void>
-  /** Ouvre le dossier des clips dans le Finder (créé s'il n'existe pas). */
+  revealFile(path: string): Promise<void>
+  /** Ouvre le dossier des clips (créé s'il n'existe pas). */
   openClipsFolder(): Promise<void>
   /** Appelé quand un projet est ouvert ou créé depuis le menu. */
   onProjectOpened(callback: (opened: OpenedProject) => void): () => void
@@ -207,7 +239,12 @@ export interface EasyEditAPI {
   startExport(request: ExportRequest): Promise<void>
   cancelExport(): Promise<void>
   onExport(callback: (event: ExportEvent) => void): () => void
-  /** Transcrit un son mono à 16 kHz (Voz, sur le Mac) ; mots en secondes depuis son début. */
+  /** Nom du PC de rendu s'il répond sur le réseau (« PC Linux »), sinon null ; `onRenderServer` suit les changements. */
+  renderServer(): Promise<string | null>
+  onRenderServer(callback: (name: string | null) => void): () => void
+  /** Enregistre le code d'appairage du PC de rendu ; false s'il est faux. */
+  setRenderCode(code: string): Promise<boolean>
+  /** Transcrit un son mono à 16 kHz (Voz, sur l'ordinateur) ; mots en secondes depuis son début. */
   transcribe(samples: Float32Array): Promise<{ text: string; start: number; end: number }[]>
   onTranscribeProgress(callback: (progress: { phase: TranscribePhase; fraction: number | null }) => void): () => void
   /** Met la fenêtre en plein écran (sans changer d'espace sur macOS) ou l'en sort. */

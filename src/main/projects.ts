@@ -1,13 +1,12 @@
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { app } from 'electron'
 import type { OpenedProject, Project } from '@shared/types'
 import { emptyProject } from '@shared/project'
+import { projectsFolder } from './folders'
 
 export const PROJECT_EXTENSION = 'easyedit'
-const projectsFolder = join(homedir(), 'Movies', 'Easy Edit', 'Projets')
 const settingsFile = join(app.getPath('userData'), 'settings.json')
 
 /** « Montage du 23-10-2026 à 18h12.easyedit », avec « 2 », « 3 »… si le nom est pris. */

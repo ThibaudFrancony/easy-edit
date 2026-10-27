@@ -86,6 +86,46 @@ Les quatre premiers lots sont faits. On code lot par lot. Un lot est fini quand 
 - [x] Deuxième écran (⇧F, ou le bouton qui n'apparaît qu'avec un écran branché) : l'image seule en plein écran sur l'autre écran, comme un moniteur de contrôle, pendant que le montage continue sur l'écran principal. Une seule horloge et le son dans la fenêtre principale.
 - [x] Débrancher l'écran ferme le moniteur ; fermer la fenêtre principale le ferme aussi.
 
+## Lot 9 : Windows et import de vidéos
+
+- [x] Dossiers par système : le dossier Vidéos de l'utilisateur (`~/Movies` sur Mac) pour les projets, exports, sons, images et vidéos importées.
+- [x] Export : encodeur matériel de la carte graphique sur Windows (NVIDIA, Intel ou AMD, essayés dans cet ordre), `libx264` en secours ; noms de fichier sans les caractères interdits par Windows ; sous-titres sans chemin dans le graphe FFmpeg.
+- [x] Fenêtre Windows : barre de titre aux couleurs Studio avec les boutons de Windows à droite ; le logo ouvre le menu de l'app.
+- [x] Raccourcis : Ctrl à la place de ⌘ (y compris dans les libellés affichés), « Afficher dans l'Explorateur ».
+- [x] Import de vidéos (+ ou glisser) : copiées dans `Easy Edit/Vidéos` ; un .mkv (OBS) est converti en .mp4 sans réencodage. Plusieurs pistes audio sans nom deviennent « Piste 1 », « Piste 2 »…
+- [x] `npm run app:win` : installateur Windows x64 (NSIS, sans droits administrateur) construit depuis le Mac, avec FFmpeg, FFprobe et onnxruntime pour Windows.
+- [ ] Testé sur le PC : installation, bibliothèque, lecture, montage, transcription, export.
+- [x] Menu « Plugins » dans la barre du haut (et dans le menu de l'app) ; premier plugin « Transcript », qui ouvre « Quelle piste transcrire ? » comme le bouton « Transcrire ».
+- [ ] Menu « Plugins » vérifié dans l'app.
+
+## Lot 10 : plugin Motion blur
+
+Le flou de mouvement à la manière de ReelSmart Motion Blur : RIFE calcule des images intermédiaires entre deux vraies images, et chaque image floutée est la moyenne de celles qui tombent pendant que l'obturateur est ouvert. Ce qui ne bouge pas (le HUD) reste net.
+
+- [x] Réglé sur une piste vidéo entière, dans l'inspecteur : interrupteur « Motion blur » (couper garde les réglages), Intensité (0 à 100 %, 50 % par défaut, soit un obturateur à 180° ; double-clic pour y revenir), Qualité (4, 8 ou 16 images intermédiaires), Pondération (Égale ou Douce), Cadence (60 ou 30 i/s).
+- [x] Plugins › Motion blur (barre du haut et menu de l'app) : ouvre ces réglages pour la piste visée et allume le flou.
+- [x] À l'export seulement : l'aperçu montre la vidéo sans flou. Chaque morceau est flouté avant l'encodage (étape « Motion blur » dans le panneau d'export, annulable), puis gardé en cache.
+- [x] RIFE 4.22 lite (ONNX, fourni avec l'app) dans un processus à part, sur la puce graphique : CoreML ou WebGPU sur Mac, DirectML sur Windows (le plus rapide des deux, mesuré au premier calcul), le processeur en secours.
+- [ ] Vérifié sur le Mac : vitesse avec CoreML sur un clip de ReplayClip en 1728×1080, rendu sur une vraie partie.
+- [ ] Vérifié sur le PC : DirectML.
+
+## Lot 11 : rendu sur le PC Linux
+
+Le montage se fait sur le Mac ; l'export peut partir sur le PC Linux de la maison (Core i5-9400F, GeForce GTX 1650), toujours allumé, pour épargner le Mac. Réseau de la maison seulement.
+
+Mesures du 27/10/2026 (motion blur, RIFE par image intermédiaire) : 2 s sur le processeur, 195 ms sur la carte en 1728×1080 (88 ms en 1152×720, 52 ms en 864×540). Flou complet avec les réglages par défaut : environ 56 s par seconde de vidéo en 1728×1080.
+
+- [x] L'export ne dépend plus d'Electron (`runtime.ts`, `media-tools.ts`, `render.ts`) : l'app et le service font exactement le même rendu.
+- [x] Service `src/render-server/` (Node seul) : HTTP sur le port 7171, adresses privées seulement, annoncé par Bonjour (`_easyedit-render._tcp`), un rendu à la fois, rendus gardés sur disque. Motion blur sur la carte NVIDIA (CUDA 13.2 et cuDNN 9 dans `~/.local/share/easy-edit-render/cuda`).
+- [x] Code d'appairage à 6 chiffres (10 essais faux : une minute de blocage), demandé une fois dans le panneau d'export.
+- [x] Clips envoyés une seule fois (nommés par leur empreinte SHA-256, vérifiée à l'arrivée) ; le PC extrait lui-même les pistes audio.
+- [x] Panneau d'export : « Ce Mac · PC Linux » quand le PC répond (choix retenu), étapes Envoi, Motion blur, Encodage, Réception ; annulation jusque sur le PC.
+- [x] Une vidéo finie pendant que l'app était fermée est récupérée au lancement suivant, rangée dans son dossier, et le panneau d'export l'annonce.
+- [x] Essayé de bout en bout sur le PC (client Node) : envoi, motion blur sur la carte, sous-titres, son, réception ; deuxième rendu sans envoi ni recalcul ; annulation en plein calcul.
+- [x] Installé sur le PC : `npm run render-server` (service systemd `easy-edit-render`, actif).
+- [x] Démarrage avec le PC (`sudo loginctl enable-linger thib`) et ports 7171/tcp et 5353/udp ouverts dans ufw pour 192.168.1.0/24.
+- [ ] Vérifié depuis le Mac : découverte, autorisation « réseau local » de macOS, appairage, export complet, reprise après fermeture de l'app.
+
 ## Plus tard
 
 Les idées pas encore planifiées sont dans [IDEES.md](IDEES.md).

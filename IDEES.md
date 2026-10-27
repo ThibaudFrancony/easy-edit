@@ -19,7 +19,7 @@ Les questions sont numérotées (Q1, Q2…) d'un chantier à l'autre : on peut r
 Ordre revu le 24/10/2026 (priorité : envoyer une v1 à un pote sur Windows) :
 
 1. Plein écran de l'aperçu (lot 8)
-2. Windows, avec l'import de vidéos de « Clips venant d'ailleurs » (sans lui, la bibliothèque du pote est vide)
+2. Windows, avec l'import de vidéos de « Clips venant d'ailleurs » (lot 9)
 3. Partage et mises à jour : Windows d'abord, puis Mac ; publication de la 1.0
 4. Étalonnage, mode simple
 5. Clips venant d'ailleurs : le format de la vidéo (Q21)
@@ -75,7 +75,7 @@ Ordre revu le 24/10/2026 (priorité : envoyer une v1 à un pote sur Windows) :
 Aujourd'hui, la bibliothèque ne lit que `~/Movies/Clips`, et l'aperçu prend le format du premier clip. Les vidéos d'un téléphone, d'OBS ou de Windows ont d'autres tailles, d'autres cadences, une seule piste audio (déjà géré) ou plusieurs pistes sans nom.
 
 **Décisions**
-- Les vidéos s'ajoutent à la bibliothèque comme les sons (glisser, ou +) et sont **copiées** dans `Easy Edit/Vidéos`. La copie se fait en arrière-plan, avec sa progression sur la vignette ; le clip est utilisable dès qu'elle est finie.
+- (Passé au lot 9.) Les vidéos s'ajoutent à la bibliothèque comme les sons (glisser, ou +) et sont **copiées** dans `Easy Edit/Vidéos`. La copie se fait en arrière-plan, avec sa progression sur la vignette ; le clip est utilisable dès qu'elle est finie.
 - Le dossier de ReplayClip (`~/Movies/Clips`) reste lu tel quel, sans copie, s'il existe.
 - Plusieurs pistes audio sans nom deviennent « Piste 1 », « Piste 2 »…
 - Le format de la vidéo finale se choisit dans le panneau d'export. Il est présélectionné sur le format de l'aperçu (celui du premier clip par défaut). Un clip d'une autre taille s'ajuste dans l'image sans être déformé (bandes noires) ; le cadrage permet ensuite de le recadrer.
@@ -115,27 +115,6 @@ Aujourd'hui, la bibliothèque ne lit que `~/Movies/Clips`, et l'aperçu prend le
 6. AGENTS.md : l'app n'est plus réservée au Mac de Thibaud ; documenter la publication d'une version.
 
 **Fichiers touchés** : `scripts/release.mjs` (nouveau), `src/main/updater.ts` (nouveau), `package.json` (version, cibles), `AGENTS.md`.
-
-### Windows
-
-**État** : prêt
-**Idées** : des potes sur Windows 11.
-**Taille** : gros · **Dépend de** : rien, mais à faire avant d'envoyer l'app à un pote sur PC.
-
-**Décisions**
-- Windows 11 sur PC classique (x64) uniquement.
-- Tests sur le PC Windows de Thibaud. L'installateur y arrive par une release GitHub (une version de test, « 1.1.0-beta.1 », que seul le PC installe), ce qui teste en même temps les mises à jour.
-- Pas de barre de menu sur Windows : le logo de la barre du haut ouvre un menu qui reprend celui du Mac (Nouveau projet, Ouvrir, Exporter…).
-
-**Plan**
-1. Dossiers : `app.getPath('videos')` à la place de `~/Movies` (même résultat sur Mac, dossier Vidéos sur Windows) ; cache du modèle de transcription dans le dossier de cache de chaque système.
-2. Export : au premier export, l'app essaie l'encodeur matériel de la carte graphique (NVIDIA `h264_nvenc`, Intel `h264_qsv`, AMD `h264_amf`) sur une image de test et garde le premier qui marche ; sinon `libx264`. Sur Mac, rien ne change (`h264_videotoolbox`).
-3. Fenêtre : barre de titre intégrée aux couleurs Studio, avec les boutons de Windows à droite (`titleBarOverlay`) ; menu du logo.
-4. Raccourcis affichés : ⌘ devient Ctrl, ⌥ devient Alt, ⇧ devient Maj.
-5. Empaquetage : installateur NSIS x64 fabriqué depuis le Mac, avec les binaires Windows de FFmpeg, FFprobe et onnxruntime. `ffmpeg-static` ne télécharge que celui de la machine qui installe : le script de release va chercher celui de Windows.
-6. Vérifier sur le PC : installation, bibliothèque, lecture, montage, transcription, export, mise à jour.
-
-**Fichiers touchés** : `src/main/projects.ts`, `src/main/media.ts`, `src/main/export.ts`, `src/main/transcriber.ts`, `src/main/index.ts`, `package.json`, un composant pour le menu du logo, l'affichage des raccourcis.
 
 ### Qualité de l'aperçu
 

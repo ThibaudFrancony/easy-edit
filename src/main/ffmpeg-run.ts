@@ -33,11 +33,13 @@ export function runFFmpeg(
   outputPath: string,
   totalSeconds: number,
   onProgress: (fraction: number) => void,
+  /** Dossier de travail de FFmpeg (les fichiers que le graphe de filtres nomme sans chemin). */
+  cwd?: string,
 ): RunningFFmpeg {
   const child = spawn(
     ffmpegPath,
     ['-hide_banner', '-v', 'error', '-y', '-nostats', '-progress', 'pipe:1', ...args],
-    { stdio: ['ignore', 'pipe', 'pipe'] },
+    { stdio: ['ignore', 'pipe', 'pipe'], cwd },
   )
 
   let cancelled = false

@@ -1,0 +1,62 @@
+.anchor {
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.button {
+  height: 32px;
+  padding: 0 8px 0 12px;
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  transition: background 0.2s, color 0.2s;
+}
+
+.button:hover,
+.button[data-open='true'] {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.chevron {
+  display: flex;
+  color: var(--text-3);
+}
+
+.menu {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 200px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #16181d;
+  border: 1px solid var(--control-strong);
+  box-shadow: 0 12px 32px #00000080;
+  transform-origin: top right;
+}
+
+.item {
+  width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+  text-align: left;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.item:hover {
+  background: var(--selected);
+}
+
+.item:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}

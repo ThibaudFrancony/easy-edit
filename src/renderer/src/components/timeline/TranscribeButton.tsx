@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { useProject } from '@/state/project'
-import { TRANSCRIBE_DRAG_TYPE, transcribeLanes, useTranscription } from '@/state/transcription'
+import { TRANSCRIBE_DRAG_TYPE, setPicking, transcribeLanes, useTranscription } from '@/state/transcription'
 import { quick } from '@/lib/motion'
 import { Icon } from '../Icon'
 import styles from './TranscribeButton.module.css'
@@ -13,7 +13,7 @@ const PHASE_LABEL = { download: 'Téléchargement du modèle', load: 'Préparati
  * pour la transcrire directement.
  */
 export function TranscribeButton(): React.JSX.Element {
-  const [open, setOpen] = useState(false)
+  const open = useTranscription((s) => s.picking)
   const running = useTranscription((s) => s.running)
   const phase = useTranscription((s) => s.phase)
   const fraction = useTranscription((s) => s.fraction)
@@ -30,9 +30,9 @@ export function TranscribeButton(): React.JSX.Element {
         onDragStart={(event) => {
           event.dataTransfer.setData(TRANSCRIBE_DRAG_TYPE, '1')
           event.dataTransfer.effectAllowed = 'copy'
-          setOpen(false)
+          setPicking(false)
         }}
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => setPicking(!open)}
       >
         <Icon name="captions" size={14} />
         {running ? (
@@ -45,7 +45,7 @@ export function TranscribeButton(): React.JSX.Element {
         )}
         {running && fraction !== null && <motion.span className={styles.progress} animate={{ scaleX: fraction }} transition={{ duration: 0.2 }} />}
       </button>
-      <AnimatePresence>{open && <LanePicker onClose={() => setOpen(false)} />}</AnimatePresence>
+      <AnimatePresence>{open && <LanePicker onClose={closePicker} />}</AnimatePresence>
       <AnimatePresence>
         {error && !running && (
           <motion.span className={styles.error} initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} transition={quick}>
@@ -56,6 +56,8 @@ export function TranscribeButton(): React.JSX.Element {
     </div>
   )
 }
+
+const closePicker = (): void => setPicking(false)
 
 /** « Quelle piste transcrire ? » : les pistes audio à cocher (le micro est coché d'office). */
 function LanePicker({ onClose }: { onClose(): void }): React.JSX.Element {

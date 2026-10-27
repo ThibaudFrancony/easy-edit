@@ -14,5 +14,5 @@
     "composite": true,
     "paths": { "@shared/*": ["./src/shared/*"] }
   },
-  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"]
+  "include": ["electron.vite.config.ts", "render-server.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/render-server/**/*"]
 }

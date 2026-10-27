@@ -9,6 +9,8 @@ function listen<T>(channel: string, callback: (payload: T) => void): () => void 
 }
 
 const api: EasyEditAPI = {
+  platform: process.platform === 'darwin' || process.platform === 'win32' ? process.platform : 'linux',
+  popupMenu: (x, y) => ipcRenderer.invoke('menu:popup', x, y),
   listFiles: () => ipcRenderer.invoke('library:list'),
   clipDetails: (path) => ipcRenderer.invoke('clips:details', path),
   thumbnail: (path) => ipcRenderer.invoke('clips:thumbnail', path),
@@ -21,7 +23,7 @@ const api: EasyEditAPI = {
   saveProject: (opened) => ipcRenderer.invoke('project:save', opened),
   newProject: () => ipcRenderer.invoke('project:new'),
   openProject: () => ipcRenderer.invoke('project:open'),
-  revealInFinder: (path) => ipcRenderer.invoke('reveal', path),
+  revealFile: (path) => ipcRenderer.invoke('reveal', path),
   openClipsFolder: () => ipcRenderer.invoke('clips:open-folder'),
   onProjectOpened: (callback) => listen<OpenedProject>('project-opened', callback),
   onMenu: (callback) => listen<MenuAction>('menu', callback),
@@ -30,6 +32,9 @@ const api: EasyEditAPI = {
   startExport: (request) => ipcRenderer.invoke('export:start', request),
   cancelExport: () => ipcRenderer.invoke('export:cancel'),
   onExport: (callback) => listen<ExportEvent>('export', callback),
+  renderServer: () => ipcRenderer.invoke('render:server'),
+  onRenderServer: (callback) => listen<string | null>('render-server', callback),
+  setRenderCode: (code) => ipcRenderer.invoke('render:code', code),
   transcribe: (samples) => ipcRenderer.invoke('transcribe', samples),
   onTranscribeProgress: (callback) => listen<{ phase: TranscribePhase; fraction: number | null }>('transcribe-progress', callback),
   setFullScreen: (on) => ipcRenderer.invoke('window:fullscreen', on),

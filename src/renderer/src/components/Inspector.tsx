@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { CaptionWord, Lane } from '@shared/types'
+import type { CaptionWord, Lane, MotionBlur } from '@shared/types'
 import { CAPTION_ACCENTS, CAPTION_STYLES, DEFAULT_LOOK } from '@shared/captions'
+import { DEFAULT_MOTION_BLUR } from '@shared/motion-blur'
 import { CaptionText } from './Captions'
-import { deleteLane, renameLane, setLaneLook, setLaneVolume, toggleLaneMute, toggleLaneNormalized } from '@/state/editing'
+import { deleteLane, renameLane, setLaneLook, setLaneMotionBlur, setLaneVolume, toggleLaneMute, toggleLaneNormalized } from '@/state/editing'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { quick, standard } from '@/lib/motion'
@@ -66,12 +67,15 @@ function LaneSettings({ lane }: { lane: Lane }): React.JSX.Element {
       {caption ? (
         <CaptionSettings lane={lane} />
       ) : video ? (
-        videoLaneCount > 1 && (
-          <button className={styles.delete} onClick={() => deleteLane(lane.id)}>
-            <Icon name="trash" size={14} />
-            Supprimer la piste
-          </button>
-        )
+        <>
+          <MotionBlurSettings lane={lane} />
+          {videoLaneCount > 1 && (
+            <button className={styles.delete} onClick={() => deleteLane(lane.id)}>
+              <Icon name="trash" size={14} />
+              Supprimer la piste
+            </button>
+          )}
+        </>
       ) : (
         <AudioSettings lane={lane} percent={percent} />
       )}
@@ -189,6 +193,90 @@ function AudioSettings({ lane, percent }: { lane: Lane; percent: number }): Reac
         </button>
       )}
     </>
+  )
+}
+
+/** Plugin « Motion blur » : appliqué à l'export seulement (l'aperçu montre la vidéo sans flou). */
+function MotionBlurSettings({ lane }: { lane: Lane }): React.JSX.Element {
+  const blur = lane.motionBlur ?? { ...DEFAULT_MOTION_BLUR, enabled: false }
+  const set = (change: Partial<MotionBlur>): void => setLaneMotionBlur(lane.id, change)
+  const percent = Math.round(blur.amount * 100)
+
+  return (
+    <div className={styles.section}>
+      <button className={styles.toggleRow} role="switch" aria-checked={blur.enabled} onClick={() => set({ enabled: !blur.enabled })}>
+        <span>Motion blur</span>
+        <span className={styles.switch} data-on={blur.enabled}>
+          <motion.span className={styles.knob} animate={{ x: blur.enabled ? 16 : 0 }} transition={quick} />
+        </span>
+      </button>
+      <AnimatePresence initial={false}>
+        {blur.enabled && (
+          <motion.div
+            className={styles.collapsible}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={standard}
+          >
+            <div className={styles.fields}>
+              <div className={styles.field}>
+                <span>Intensité</span>
+                <span className={`${styles.fieldValue} mono`}>{percent} %</span>
+              </div>
+              <div className={styles.slider} onDoubleClick={() => set({ amount: DEFAULT_MOTION_BLUR.amount })}>
+                <div className={styles.track} />
+                <motion.div className={styles.fill} animate={{ width: `${percent}%` }} transition={quick} />
+                <motion.div className={styles.thumb} animate={{ left: `${percent}%` }} transition={quick} />
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  step={1}
+                  value={percent}
+                  aria-label="Intensité"
+                  onChange={(event) => setLaneMotionBlur(lane.id, { amount: Number(event.target.value) / 100 }, `blur-amount:${lane.id}`)}
+                />
+              </div>
+              <Choice label="Qualité" value={blur.quality} options={[[4, '4'], [8, '8'], [16, '16']]} onChange={(quality) => set({ quality })} />
+              <Choice
+                label="Pondération"
+                value={blur.weighting}
+                options={[['equal', 'Égale'], ['gaussian', 'Douce']]}
+                onChange={(weighting) => set({ weighting })}
+              />
+              <Choice label="Cadence" value={blur.fps} options={[[60, '60 i/s'], [30, '30 i/s']]} onChange={(fps) => set({ fps })} />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+/** Un choix parmi quelques valeurs, en boutons collés. */
+function Choice<T extends string | number>({
+  label,
+  value,
+  options,
+  onChange
+}: {
+  label: string
+  value: T
+  options: [T, string][]
+  onChange(value: T): void
+}): React.JSX.Element {
+  return (
+    <div className={styles.field}>
+      <span>{label}</span>
+      <div className={styles.segmented} role="radiogroup" aria-label={label}>
+        {options.map(([option, text]) => (
+          <button key={option} role="radio" aria-checked={option === value} className={`${styles.segment} mono`} onClick={() => onChange(option)}>
+            {text}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }
 

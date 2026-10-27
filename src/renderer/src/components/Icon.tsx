@@ -27,6 +27,8 @@ const paths = {
   fullscreen: ['M4 9V4h5', 'M20 9V4h-5', 'M4 15v5h5', 'M20 15v5h-5'],
   'fullscreen-exit': ['M9 4v5H4', 'M15 4v5h5', 'M9 20v-5H4', 'M15 20v-5h5'],
   display: ['M3 4h18v12H3z', 'M8 20h8', 'M12 16v4'],
+  'chevron-down': ['M6 9l6 6 6-6'],
+  motion: ['M16 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0-8 0', 'M3 9h6', 'M2 12h6', 'M3 15h6'],
   folder: ['M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']
 } as const
 

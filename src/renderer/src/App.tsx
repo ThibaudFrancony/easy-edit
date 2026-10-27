@@ -2,12 +2,14 @@ import { useEffect } from 'react'
 import type { MenuAction } from '@shared/types'
 import { projectDuration } from '@shared/project'
 import { player } from '@/engine/player'
-import { deleteSelection, pruneSelection, selectAll, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
+import { deleteSelection, openMotionBlur, pruneSelection, selectAll, splitAtPlayhead, toggleLinkSelection } from '@/state/editing'
 import { useLibrary } from '@/state/library'
 import { useProject } from '@/state/project'
 import { useTimeline } from '@/state/timeline'
 import { fileName } from '@/lib/format'
+import { isMac } from '@/lib/platform'
 import { useExport } from '@/state/export'
+import { setPicking } from '@/state/transcription'
 import { toggleFullscreen, toggleMonitor, watchScreens } from '@/state/screens'
 import { ExportPanel } from './components/ExportPanel'
 import { ContextMenu } from './components/timeline/ContextMenu'
@@ -15,6 +17,7 @@ import { Icon } from './components/Icon'
 import { Inspector } from './components/Inspector'
 import { Library } from './components/Library'
 import { Logo } from './components/Logo'
+import { PluginsMenu } from './components/PluginsMenu'
 import { Preview } from './components/Preview'
 import { Timeline } from './components/timeline/Timeline'
 import { useKeyboard } from './useKeyboard'
@@ -29,8 +32,24 @@ export function App(): React.JSX.Element {
   return (
     <div className={styles.app}>
       <header className={styles.topBar}>
-        <Logo size={16} />
-        <span className={styles.appName}>Easy Edit</span>
+        {isMac ? (
+          <>
+            <Logo size={16} />
+            <span className={styles.appName}>Easy Edit</span>
+          </>
+        ) : (
+          // Windows n'a pas de barre des menus : le menu de l'app s'ouvre ici.
+          <button
+            className={styles.menuButton}
+            onClick={(event) => {
+              const box = event.currentTarget.getBoundingClientRect()
+              void window.api.popupMenu(box.left, box.bottom + 4)
+            }}
+          >
+            <Logo size={16} />
+            <span className={styles.appName}>Easy Edit</span>
+          </button>
+        )}
         {path && (
           <>
             <span className={styles.separator}>/</span>
@@ -38,6 +57,7 @@ export function App(): React.JSX.Element {
           </>
         )}
         <div className={styles.grow} />
+        <PluginsMenu />
         <button className={styles.exportButton} disabled={empty} onClick={() => void useExport.getState().show()}>
           <Icon name="export" size={15} />
           Exporter
@@ -88,7 +108,9 @@ function useAppEvents(): void {
         'toggle-link': toggleLinkSelection,
         export: () => void useExport.getState().show(),
         fullscreen: toggleFullscreen,
-        monitor: toggleMonitor
+        monitor: toggleMonitor,
+        transcribe: () => setPicking(true),
+        'motion-blur': openMotionBlur
       }
       actions[action]()
     })

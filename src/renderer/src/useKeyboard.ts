@@ -5,6 +5,7 @@ import { deleteSelection, selectAll, splitAtPlayhead, toggleLinkSelection } from
 import { useCanvas } from '@/state/canvas'
 import { useExport } from '@/state/export'
 import { useProject } from '@/state/project'
+import { commandKey, isMac } from '@/lib/platform'
 import { setFullscreen, toggleFullscreen, toggleMonitor, useScreens } from '@/state/screens'
 import { useTimeline } from '@/state/timeline'
 
@@ -17,12 +18,13 @@ export function useKeyboard(): void {
     const onKeyDown = (event: KeyboardEvent): void => {
       const target = event.target as HTMLElement | null
       if (target?.closest('input:not([type="range"]), textarea, [contenteditable="true"]')) return
-      if (event.altKey || event.ctrlKey) return
+      // L'autre touche de modification (Ctrl sur Mac, Windows sur PC) ne déclenche aucun raccourci.
+      if (event.altKey || (isMac ? event.ctrlKey : event.metaKey)) return
       // Le panneau d'export a ses propres touches (Entrée, Échap).
       if (useExport.getState().open) return
 
       const key = event.key.length === 1 ? event.key.toLowerCase() : event.key
-      const command = event.metaKey
+      const command = commandKey(event)
       const shift = event.shiftKey
       const { undo, redo } = useProject.getState()
 
@@ -30,7 +32,9 @@ export function useKeyboard(): void {
         ? {
             z: shift ? redo : undo,
             a: selectAll,
-            l: toggleLinkSelection
+            l: toggleLinkSelection,
+            // Sur Mac, ceux-là passent par la barre des menus ; Windows n'en a pas.
+            ...(isMac ? {} : windowsMenuShortcuts(shift))
           }
         : {
             ' ': () => player.toggle(),
@@ -61,4 +65,22 @@ export function useKeyboard(): void {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
+}
+
+/** Les raccourcis du menu de l'app, sur Windows (Ctrl+…). */
+function windowsMenuShortcuts(shift: boolean): Record<string, (() => void) | undefined> {
+  const { load, redo } = useProject.getState()
+  const zoom = (factor: number) => (): void => {
+    const { pixelsPerSecond, zoomTo } = useTimeline.getState()
+    zoomTo(pixelsPerSecond * factor, player.time())
+  }
+  return {
+    n: () => void window.api.newProject().then(load),
+    o: () => void window.api.openProject().then((opened) => opened && load(opened)),
+    e: () => void useExport.getState().show(),
+    y: shift ? undefined : redo,
+    '=': zoom(1.5),
+    '+': zoom(1.5),
+    '-': zoom(1 / 1.5)
+  }
 }
