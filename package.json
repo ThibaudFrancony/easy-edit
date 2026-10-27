@@ -82,7 +82,8 @@
         "from": "resources/models",
         "to": "models",
         "filter": [
-          "*.onnx"
+          "*.onnx",
+          "!*-cuda.onnx"
         ]
       }
     ]

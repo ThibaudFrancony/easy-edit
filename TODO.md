@@ -124,7 +124,18 @@ Mesures du 27/10/2026 (motion blur, RIFE par image intermédiaire) : 2 s sur le 
 - [x] Essayé de bout en bout sur le PC (client Node) : envoi, motion blur sur la carte, sous-titres, son, réception ; deuxième rendu sans envoi ni recalcul ; annulation en plein calcul.
 - [x] Installé sur le PC : `npm run render-server` (service systemd `easy-edit-render`, actif).
 - [x] Démarrage avec le PC (`sudo loginctl enable-linger thib`) et ports 7171/tcp et 5353/udp ouverts dans ufw pour 192.168.1.0/24.
-- [ ] Vérifié depuis le Mac : découverte, autorisation « réseau local » de macOS, appairage, export complet, reprise après fermeture de l'app.
+- [x] Vérifié depuis le Mac : découverte (en dev et dans l'app installée, une fois l'exécutable doté de son propre UUID).
+- [x] Repli sans Bonjour : dernière adresse connue, puis `whorespace.local` ; le service s'annonce désormais en `<nom>.local` (il annonçait « whorespace. », que le Mac ne résout pas).
+- [ ] Service du PC mis à jour (`git pull` puis `npm run render-server`) pour l'annonce en .local et le flou plus rapide.
+- [x] Vérifié depuis le Mac : appairage, export complet (30,5 s de vidéo 1920×1080 avec motion blur : 32 min, dont 98,5 % de flou, 18 s d'encodage, 2 s de réception).
+- [ ] Vérifié depuis le Mac : reprise après fermeture de l'app.
+
+Vitesse du flou sur le PC (27/10/2026, extrait de 2 s en 1920×1080, réglages par défaut : 4 calculs RIFE par image) :
+- [x] Calculs RIFE envoyés d'avance à la carte (deux en vol) pendant que le processeur prépare et mélange ; arrondi final par `Uint8ClampedArray` (18 ms au lieu de 61) : 126 → 116 s.
+- [x] Modèle pour la carte NVIDIA `rife-v4.22-lite-cuda.onnx` (`scripts/rife-cuda-model.py`) : images en octets RGB à l'entrée et à la sortie, résultat identique à l'original, quatre fois moins de données copiées : 116 → 102,5 s (−19 % en tout). La carte calcule désormais sans arrêt : la suite ne peut venir que de moins de calcul.
+- Essayé et écarté : demi-précision (2,6 fois plus lente sur la GTX 1650, sans cœurs Tensor, et moins juste), RIFE à demi-résolution (−25 % seulement, image nettement différente), TensorRT (3,8 à 6 Go de bibliothèques, version 11 alors qu'ONNX Runtime attend la 10).
+- Sur le Mac, le modèle en octets n'apporte rien (WebGPU à égalité, CoreML plus lent) : le Mac garde le modèle d'origine. Le Mac et le PC ne donnent pas exactement la même image floutée (PSNR 35 dB : CoreML/WebGPU et CUDA ne calculent pas pareil), c'était déjà le cas avant.
+- Le réglage Qualité 4 au lieu de 8 divise le temps par deux (2 calculs par image au lieu de 4) : à comparer à l'œil.
 
 ## Plus tard
 
