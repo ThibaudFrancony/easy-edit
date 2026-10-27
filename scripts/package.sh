@@ -16,6 +16,7 @@ npx electron-builder --mac dir --arm64 -c.directories.output="$STAGE/dist"
 
 ditto --norsrc --noextattr --noacl "$STAGE/dist/mac-arm64/Easy Edit.app" "$APP"
 rm -rf "$STAGE/dist"
+node scripts/macho-uuid.mjs "$APP/Contents/MacOS/Easy Edit" com.thibaud.easyedit
 codesign --force --deep --sign - "$APP"
 # Une copie de travail ne doit jamais être proposée par macOS pour ouvrir l'app.
 "$LSREGISTER" -u "$APP" 2>/dev/null || true

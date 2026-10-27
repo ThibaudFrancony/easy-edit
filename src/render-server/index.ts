@@ -6,7 +6,7 @@ import { randomInt } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
-import { homedir } from 'node:os'
+import { homedir, hostname } from 'node:os'
 import { join } from 'node:path'
 import { Bonjour } from 'bonjour-service'
 import { RENDER_PORT, RENDER_PROTOCOL, RENDER_SERVICE_TYPE } from '@shared/render-protocol'
@@ -72,7 +72,8 @@ async function main(): Promise<void> {
   server.listen(RENDER_PORT, () => console.log(`Easy Edit Render : « ${name} », port ${RENDER_PORT}, protocole ${RENDER_PROTOCOL}`))
 
   const bonjour = new Bonjour()
-  bonjour.publish({ name, type: RENDER_SERVICE_TYPE, port: RENDER_PORT, disableIPv6: true })
+  // `host` en .local : par défaut c'est le nom nu (« whorespace. »), que le Mac ne sait pas résoudre.
+  bonjour.publish({ name, type: RENDER_SERVICE_TYPE, port: RENDER_PORT, host: `${hostname().split('.')[0]}.local`, disableIPv6: true })
 
   const stop = (): void => {
     bonjour.unpublishAll(() => bonjour.destroy())

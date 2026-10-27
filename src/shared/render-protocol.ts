@@ -18,6 +18,8 @@ import type { ExportQuality, ExportStep, Project } from './types'
 export const RENDER_PROTOCOL = 1
 export const RENDER_SERVICE_TYPE = 'easyedit-render'
 export const RENDER_PORT = 7171
+/** Le PC de la maison, par son nom : essayé quand Bonjour ne répond pas (réseau qui bloque la multidiffusion). */
+export const RENDER_HOST = 'whorespace.local'
 export const RENDER_CODE_HEADER = 'x-easy-edit-code'
 
 export interface RenderStatus {

@@ -13,6 +13,7 @@ Les questions sont numérotées (Q1, Q2…) d'un chantier à l'autre : on peut r
 - Réordonner les pistes en les glissant.
 - Fondus audio et vidéo.
 - Normalisation plus fidèle (pondération K des LUFS) et calcul dans un worker si les projets deviennent longs.
+- Aperçu aligné sur les images du rendu : à un instant donné, l'aperçu montre exactement l'image que l'export produira. Aujourd'hui, sur un clip de ReplayClip (cadence variable), l'export recale tout à 60 i/s (filtre `fps`) alors que le `<video>` de l'aperçu affiche l'image qu'il choisit : les deux peuvent différer d'une image.
 
 ## Chantiers
 

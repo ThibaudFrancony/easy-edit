@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import { Bonjour } from 'bonjour-service'
 import type { ExportEvent, ExportRequest, ExportStep } from '@shared/types'
-import { RENDER_PROTOCOL, RENDER_SERVICE_TYPE, type RenderJob, type RenderStatus } from '@shared/render-protocol'
+import { RENDER_HOST, RENDER_PORT, RENDER_PROTOCOL, RENDER_SERVICE_TYPE, type RenderJob, type RenderStatus } from '@shared/render-protocol'
 import { exportsFolder } from './folders'
 import { RenderClient, type RenderServer } from './render-client'
 
@@ -56,9 +56,15 @@ async function tryServer(candidate: RenderServer): Promise<void> {
   if (status) setServer({ ...candidate, name: status.name })
 }
 
+/** Sans Bonjour : la dernière adresse connue, puis le PC par son nom. */
+function tryKnownServers(): void {
+  if (settings.server) void tryServer(settings.server)
+  if (settings.server?.address !== RENDER_HOST) void tryServer({ name: '', address: RENDER_HOST, port: RENDER_PORT })
+}
+
 /**
- * Cherche le PC de rendu : par Bonjour, et à sa dernière adresse connue. Puis vérifie toutes les 20 s qu'il répond
- * toujours (le choix disparaît du panneau d'export quand le PC est éteint ou qu'on n'est plus à la maison).
+ * Cherche le PC de rendu : par Bonjour, à sa dernière adresse connue et par son nom. Puis vérifie toutes les 20 s
+ * qu'il répond toujours (le choix disparaît du panneau d'export quand le PC est éteint ou qu'on n'est plus à la maison).
  */
 export async function watchRenderServer(onChange: (name: string | null) => void, onExport: (event: ExportEvent) => void): Promise<void> {
   notify = onChange
@@ -70,7 +76,7 @@ export async function watchRenderServer(onChange: (name: string | null) => void,
       settings = {}
     }
   }
-  if (settings.server) void tryServer(settings.server)
+  tryKnownServers()
 
   const bonjour = new Bonjour()
   const browser = bonjour.find({ type: RENDER_SERVICE_TYPE }, (service) => {
@@ -82,7 +88,7 @@ export async function watchRenderServer(onChange: (name: string | null) => void,
     if (server && !(await reachable(server))) setServer(null)
     if (!server) {
       browser.update()
-      if (settings.server) void tryServer(settings.server)
+      tryKnownServers()
     }
   }, 20_000)
   app.on('will-quit', () => {
