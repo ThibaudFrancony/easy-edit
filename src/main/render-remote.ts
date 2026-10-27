@@ -1,4 +1,5 @@
 import { existsSync } from 'node:fs'
+import { lookup } from 'node:dns/promises'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
@@ -56,10 +57,20 @@ async function tryServer(candidate: RenderServer): Promise<void> {
   if (status) setServer({ ...candidate, name: status.name })
 }
 
+/** Le PC par son nom, en IPv4 seulement : en demandant aussi l'IPv6, que le service n'annonce pas, macOS attend 5 s. */
+async function tryByName(): Promise<void> {
+  try {
+    const { address } = await lookup(RENDER_HOST, { family: 4 })
+    await tryServer({ name: '', address, port: RENDER_PORT })
+  } catch {
+    // Pas de PC de ce nom sur ce réseau.
+  }
+}
+
 /** Sans Bonjour : la dernière adresse connue, puis le PC par son nom. */
 function tryKnownServers(): void {
   if (settings.server) void tryServer(settings.server)
-  if (settings.server?.address !== RENDER_HOST) void tryServer({ name: '', address: RENDER_HOST, port: RENDER_PORT })
+  void tryByName()
 }
 
 /**
